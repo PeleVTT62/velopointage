@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PéléVTT 62 - Journal des Actions</title>
+  <script defer src="/static/js/route-branding.js"></script>
+  
+  <!-- Favicon et icônes -->
+  <link rel="icon" href="/static/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+  
+  <!-- Meta iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Couleur thème -->
+  <meta name="theme-color" content="#3498db">
+  
+  <style>
+    :root {
+      --bg-primary: #ecf0f1;
+      --text-primary: #2c3e50;
+      --text-secondary: #7f8c8d;
+      --border-color: rgba(52, 152, 219, 0.2);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.15);
+      --accent-primary: #3498db;
+      --success: #2ecc71;
+      --danger: #e74c3c;
+      --warning: #f39c12;
+      --info: #9b59b6;
+      --border-radius: 16px;
+      --transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      --gradient-primary: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
+      --glass-bg: rgba(255, 255, 255, 0.8);
+      --glass-border: rgba(255, 255, 255, 0.3);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes countUp {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    @keyframes slideInRight {
+      from { 
+        opacity: 0; 
+        transform: translateX(-20px);
+      }
+      to { 
+        opacity: 1; 
+        transform: translateX(0);
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, #d5dbdb 100%);
+      background-size: 200% 200%;
+      animation: gradientShift 15s ease infinite;
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 1.5rem;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at 20% 50%, rgba(52, 152, 219, 0.08) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 80%, rgba(46, 204, 113, 0.08) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+      padding-bottom: 3rem;
+    }
+
+    /* Bouton flottant retour menu */
+    .floating-button {
+      position: fixed;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--gradient-primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 1000;
+      padding: 0;
+      margin: 0;
+    }
+
+    .floating-button::before {
+      display: none !important;
+      content: none !important;
+    }
+
+    .floating-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .floating-button:active {
+      transform: translateY(-1px);
+    }
+
+    #btn-menu-principal {
+      bottom: 20px;
+      right: 20px;
+    }
+
+    /* Tooltip pour bouton flottant */
+    .floating-button::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      right: 70px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: white;
+      color: var(--text-primary);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .floating-button:hover::after,
+    .floating-button.show-tooltip::after {
+      opacity: 1;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+      animation: fadeIn 0.6s ease;
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .header h1 .title-text {
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header h1 .title-icon {
+      display: inline-block;
+      margin-right: 0.25rem;
+      -webkit-text-fill-color: initial;
+    }
+
+    .header .subtitle {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+
+    /* Filtres */
+    .filters {
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      padding: 1.5rem;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-group {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .filter-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+
+    .filter-group select,
+    .filter-group input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      background: white;
+      transition: var(--transition);
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .btn-refresh {
+      padding: 0.75rem 1.5rem;
+      background: var(--accent-primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      align-self: flex-end;
+    }
+
+    .btn-refresh:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Statistiques */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      padding: 1.5rem;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-sm);
+      text-align: center;
+      animation: fadeIn 0.6s ease;
+    }
+
+    .stat-card .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent-primary);
+      margin-bottom: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .stat-card .stat-value.updating {
+      animation: countUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .stat-card .stat-label {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    /* Liste des logs */
+    .log-list {
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .log-item {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      transition: var(--transition);
+      animation: fadeIn 0.4s ease;
+      display: flex;
+      gap: 1rem;
+    }
+
+    .log-item.new {
+      animation: slideInRight 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      background: rgba(46, 204, 113, 0.1);
+    }
+
+    .log-item:last-child {
+      border-bottom: none;
+    }
+
+    .log-item:hover {
+      background: rgba(52, 152, 219, 0.05);
+    }
+
+    .log-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+
+    .log-icon.passage {
+      background: rgba(52, 152, 219, 0.1);
+    }
+
+    .log-icon.etat {
+      background: rgba(46, 204, 113, 0.1);
+    }
+
+    .log-icon.assistance {
+      background: rgba(231, 76, 60, 0.1);
+    }
+
+    .log-icon.config {
+      background: rgba(155, 89, 182, 0.1);
+    }
+
+    .log-content {
+      flex: 1;
+    }
+
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .log-title {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 1rem;
+    }
+
+    .log-time {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+
+    .log-details {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .log-meta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .log-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .log-badge.equipe {
+      background: rgba(52, 152, 219, 0.1);
+      color: var(--accent-primary);
+    }
+
+    .log-badge.user {
+      background: rgba(155, 89, 182, 0.1);
+      color: var(--info);
+    }
+
+    /* Loading state */
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--border-color);
+      border-top-color: var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    /* Indicateur temps réel */
+    .realtime-indicator {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(46, 204, 113, 0.9);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: var(--shadow-sm);
+      z-index: 999;
+      transition: all 0.3s ease;
+    }
+
+    .realtime-indicator.disconnected {
+      background: rgba(231, 76, 60, 0.9);
+    }
+
+    .realtime-indicator .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: white;
+      animation: pulse 2s ease infinite;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .filters {
+        flex-direction: column;
+      }
+
+      .filter-group {
+        width: 100%;
+      }
+
+      .btn-refresh {
+        width: 100%;
+        align-self: stretch;
+      }
+
+      .log-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Footer version */
+    .version {
+      text-align: center;
+      padding: 1rem;
+      font-size: 0.7rem;
+      color: rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <!-- Indicateur temps réel -->
+  <div class="realtime-indicator" id="realtimeIndicator">
+    <div class="pulse-dot"></div>
+    <span id="realtimeStatus">En direct</span>
+  </div>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1><span class="title-icon">📋</span><span class="title-text">Journal des Actions</span></h1>
+      <p class="subtitle">Historique des passages, états et demandes d'assistance</p>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="statTotal">-</div>
+        <div class="stat-label">Total actions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statPassages">-</div>
+        <div class="stat-label">Passages</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statEtats">-</div>
+        <div class="stat-label">Changements d'état</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statAssistances">-</div>
+        <div class="stat-label">Assistances</div>
+      </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="filters">
+      <div class="filter-group">
+        <label for="filterType">Type d'action</label>
+        <select id="filterType">
+          <option value="all">Toutes</option>
+          <option value="passage">Passages</option>
+          <option value="etat">États</option>
+          <option value="assistance">Assistances</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filterEquipe">Équipe</label>
+        <select id="filterEquipe">
+          <option value="all">Toutes</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filterDate">Date</label>
+        <input type="date" id="filterDate">
+      </div>
+      <button class="btn-refresh" onclick="loadLogs()">🔄 Actualiser</button>
+    </div>
+
+    <!-- Liste des logs -->
+    <div class="log-list" id="logList">
+      <div class="loading">
+        <div class="loading-spinner"></div>
+        <p>Chargement des données...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer version -->
+  <div class="version" id="app-version"></div>
+
+  <!-- Bouton flottant retour menu -->
+  <button id="btn-menu-principal" class="floating-button" data-tooltip="Retour menu">↩️</button>
+
+  <script>
+    // Données
+    let allLogs = [];
+    let equipes = [];
+    let displayedLogIds = new Set(); // Pour éviter le clignotement
+    let previousStats = { total: 0, passages: 0, etats: 0, assistances: 0 };
+    let previousEquipesEtats = new Map(); // Stocker les états précédents des équipes
+    let isConnected = true;
+    let updateInterval = null;
+    let isFirstLoad = true;
+    let activeAnimations = new Map(); // Pour éviter les animations en conflit
+
+    // Icônes par type
+    const typeIcons = {
+      passage: '📍',
+      etat: '📊',
+      assistance: '🆘',
+      config: '⚙️'
+    };
+
+    // Chargement initial
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadEquipes();
+      await loadLogs();
+      setupFilters();
+      displayVersion();
+      startRealtimeUpdates();
+    });
+
+    // Charger les équipes
+    async function loadEquipes() {
+      try {
+        const response = await fetch('/api/equipes');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        equipes = await response.json();
+        
+        const select = document.getElementById('filterEquipe');
+        equipes.forEach(equipe => {
+          const option = document.createElement('option');
+          option.value = equipe.nom;
+          option.textContent = equipe.nom;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Erreur chargement équipes:', error);
+      }
+    }
+
+    // Charger les logs
+    async function loadLogs() {
+      try {
+        if (isFirstLoad) {
+          showLoading();
+        }
+        
+        // Récupérer tous les passages du jour (actuels + archives) et les équipes
+        const [passagesRes, equipesRes] = await Promise.all([
+          fetch('/api/passages/today'),
+          fetch('/api/equipes')
+        ]);
+        
+        if (!passagesRes.ok) {
+          throw new Error(`HTTP ${passagesRes.status}: Erreur lors de la récupération des passages`);
+        }
+        if (!equipesRes.ok) {
+          throw new Error(`HTTP ${equipesRes.status}: Erreur lors de la récupération des équipes`);
+        }
+        
+        const passages = await passagesRes.json();
+        const equipesData = await equipesRes.json();
+        
+        // Transformer les passages en format unifié
+        const passageLogs = passages.map(p => ({
+          type: 'passage',
+          timestamp: new Date(p.timestamp),
+          equipe: p.equipe,
+          user: p.observateur || 'Système',
+          details: `${p.ville || 'Position enregistrée'} (${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)})`,
+          id: `passage-${p.id}`,
+          rawTimestamp: p.timestamp
+        }));
+        
+        // Détecter les changements d'état
+        const etatLogs = [];
+        const now = Date.now();
+        
+        equipesData.forEach(eq => {
+          const currentEtat = eq.etat || 'Non défini';
+          const previousEtat = previousEquipesEtats.get(eq.nom);
+          
+          // Si l'état a changé depuis la dernière vérification
+          if (previousEtat !== undefined && previousEtat !== currentEtat) {
+            const logId = `etat-${eq.nom}-${now}`;
+            etatLogs.push({
+              type: 'etat',
+              timestamp: new Date(),
+              equipe: eq.nom,
+              user: 'Système',
+              details: `Passage à : ${currentEtat}`,
+              id: logId,
+              rawTimestamp: new Date().toISOString()
+            });
+          }
+          
+          // Mettre à jour l'état stocké
+          previousEquipesEtats.set(eq.nom, currentEtat);
+        });
+        
+        // Ajouter les nouveaux logs d'état aux logs de passage
+        const newLogs = [...passageLogs, ...etatLogs];
+        
+        // Fusionner avec les logs existants en évitant les doublons
+        const logMap = new Map();
+        [...allLogs, ...newLogs].forEach(log => {
+          logMap.set(log.id, log);
+        });
+        
+        allLogs = Array.from(logMap.values());
+
+        // Trier par date décroissante
+        allLogs.sort((a, b) => b.timestamp - a.timestamp);
+        
+        updateStats();
+        displayLogs(allLogs);
+        
+        if (isFirstLoad) {
+          isFirstLoad = false;
+        }
+        
+        updateConnectionStatus(true);
+      } catch (error) {
+        console.error('Erreur chargement logs:', error);
+        if (isFirstLoad) {
+          showError('Erreur lors du chargement des données');
+        }
+        updateConnectionStatus(false);
+      }
+    }
+
+    // Mettre à jour les statistiques avec animation
+    function updateStats() {
+      const passages = allLogs.filter(l => l.type === 'passage');
+      const etats = allLogs.filter(l => l.type === 'etat');
+      const assistances = allLogs.filter(l => l.type === 'assistance');
+      
+      const newStats = {
+        total: allLogs.length,
+        passages: passages.length,
+        etats: etats.length,
+        assistances: assistances.length
+      };
+      
+      // Animer les compteurs qui changent
+      animateStatUpdate('statTotal', newStats.total, previousStats.total);
+      animateStatUpdate('statPassages', newStats.passages, previousStats.passages);
+      animateStatUpdate('statEtats', newStats.etats, previousStats.etats);
+      animateStatUpdate('statAssistances', newStats.assistances, previousStats.assistances);
+      
+      previousStats = newStats;
+    }
+    
+    // Animer la mise à jour d'un compteur
+    function animateStatUpdate(elementId, newValue, oldValue) {
+      const element = document.getElementById(elementId);
+      if (!element) return;
+      
+      // Annuler l'animation en cours si elle existe
+      if (activeAnimations.has(elementId)) {
+        clearInterval(activeAnimations.get(elementId));
+        activeAnimations.delete(elementId);
+        element.classList.remove('updating');
+      }
+      
+      if (newValue !== oldValue && !isFirstLoad) {
+        // Ajouter l'animation visuelle
+        element.classList.add('updating');
+        
+        // Animation simple et fluide
+        const duration = 400;
+        const steps = 15;
+        const stepValue = (newValue - oldValue) / steps;
+        let currentStep = 0;
+        
+        const interval = setInterval(() => {
+          currentStep++;
+          const currentValue = Math.round(oldValue + (stepValue * currentStep));
+          element.textContent = currentValue;
+          
+          if (currentStep >= steps) {
+            clearInterval(interval);
+            activeAnimations.delete(elementId);
+            element.textContent = newValue;
+            setTimeout(() => element.classList.remove('updating'), 100);
+          }
+        }, duration / steps);
+        
+        activeAnimations.set(elementId, interval);
+      } else {
+        // Pas d'animation au premier chargement ou si pas de changement
+        element.textContent = newValue;
+      }
+    }
+
+    // Afficher les logs avec détection des nouveaux (sans clignotement)
+    function displayLogs(logs) {
+      const container = document.getElementById('logList');
+      
+      if (logs.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <p>Aucune action trouvée</p>
+          </div>
+        `;
+        return;
+      }
+      
+      // Identifier les nouveaux logs
+      const newLogs = logs.filter(log => !displayedLogIds.has(log.id));
+      
+      // Si c'est le premier chargement, tout afficher
+      if (isFirstLoad || displayedLogIds.size === 0) {
+        container.innerHTML = logs.map(log => createLogItemHTML(log, false)).join('');
+        logs.forEach(log => displayedLogIds.add(log.id));
+      } else if (newLogs.length > 0) {
+        // Ajouter seulement les nouveaux en haut
+        const newHTML = newLogs.map(log => createLogItemHTML(log, true)).join('');
+        container.insertAdjacentHTML('afterbegin', newHTML);
+        newLogs.forEach(log => displayedLogIds.add(log.id));
+        
+        // Retirer la classe 'new' après l'animation
+        setTimeout(() => {
+          document.querySelectorAll('.log-item.new').forEach(item => {
+            item.classList.remove('new');
+          });
+        }, 500);
+      }
+      
+      // Limiter le nombre d'éléments affichés pour les performances (garder les 100 derniers)
+      const items = container.querySelectorAll('.log-item');
+      if (items.length > 100) {
+        for (let i = 100; i < items.length; i++) {
+          items[i].remove();
+        }
+      }
+    }
+    
+    // Créer le HTML d'un log item
+    function createLogItemHTML(log, isNew) {
+      return `
+        <div class="log-item ${isNew ? 'new' : ''}" data-log-id="${log.id}">
+          <div class="log-icon ${log.type}">
+            ${typeIcons[log.type] || '📄'}
+          </div>
+          <div class="log-content">
+            <div class="log-header">
+              <div class="log-title">${getLogTitle(log)}</div>
+              <div class="log-time">${formatTime(log.timestamp)}</div>
+            </div>
+            <div class="log-details">${log.details}</div>
+            <div class="log-meta">
+              <span class="log-badge equipe">${log.equipe}</span>
+              <span class="log-badge user">${log.user}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Titre du log selon le type
+    function getLogTitle(log) {
+      switch(log.type) {
+        case 'passage': return 'Passage enregistré';
+        case 'etat': return 'Changement d\'état';
+        case 'assistance': return 'Demande d\'assistance';
+        case 'config': return 'Configuration modifiée';
+        default: return 'Action';
+      }
+    }
+
+    // Formater la date/heure
+    function formatTime(date) {
+      const now = new Date();
+      const diff = now - date;
+      
+      // Moins d'une minute
+      if (diff < 60000) {
+        return 'À l\'instant';
+      }
+      
+      // Moins d'une heure
+      if (diff < 3600000) {
+        const mins = Math.floor(diff / 60000);
+        return `Il y a ${mins} min`;
+      }
+      
+      // Même jour
+      if (date.toDateString() === now.toDateString()) {
+        return `Aujourd'hui à ${date.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'})}`;
+      }
+      
+      // Hier
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (date.toDateString() === yesterday.toDateString()) {
+        return `Hier à ${date.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'})}`;
+      }
+      
+      // Date complète
+      return date.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    // Configurer les filtres
+    function setupFilters() {
+      document.getElementById('filterType').addEventListener('change', applyFilters);
+      document.getElementById('filterEquipe').addEventListener('change', applyFilters);
+      document.getElementById('filterDate').addEventListener('change', applyFilters);
+    }
+
+    // Appliquer les filtres
+    function applyFilters() {
+      const typeFilter = document.getElementById('filterType').value;
+      const equipeFilter = document.getElementById('filterEquipe').value;
+      const dateFilter = document.getElementById('filterDate').value;
+      
+      let filtered = allLogs;
+      
+      // Filtre par type
+      if (typeFilter !== 'all') {
+        filtered = filtered.filter(log => log.type === typeFilter);
+      }
+      
+      // Filtre par équipe
+      if (equipeFilter !== 'all') {
+        filtered = filtered.filter(log => log.equipe === equipeFilter);
+      }
+      
+      // Filtre par date
+      if (dateFilter) {
+        const selectedDate = new Date(dateFilter);
+        filtered = filtered.filter(log => 
+          log.timestamp.toDateString() === selectedDate.toDateString()
+        );
+      }
+      
+      displayLogs(filtered);
+    }
+
+    // Afficher le loading
+    function showLoading() {
+      document.getElementById('logList').innerHTML = `
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          <p>Chargement des données...</p>
+        </div>
+      `;
+    }
+
+    // Afficher une erreur
+    function showError(message) {
+      document.getElementById('logList').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">⚠️</div>
+          <p>${message}</p>
+        </div>
+      `;
+    }
+
+    // Afficher la version
+    function displayVersion() {
+      fetch('/api/app_version', { cache: 'no-store' })
+        .then(response => response.json())
+        .then(data => {
+          if (data?.version) {
+            document.getElementById('app-version').textContent = `v${data.version}`;
+          }
+        })
+        .catch(() => {});
+    }
+
+    // Démarrer les mises à jour en temps réel (toutes les 2 secondes)
+    function startRealtimeUpdates() {
+      // Mise à jour fréquente
+      updateInterval = setInterval(async () => {
+        try {
+          await loadLogs();
+          updateConnectionStatus(true);
+        } catch (error) {
+          console.error('Erreur mise à jour:', error);
+          updateConnectionStatus(false);
+        }
+      }, 2000); // 2 secondes pour réactivité temps réel
+    }
+    
+    // Mettre à jour l'indicateur de connexion
+    function updateConnectionStatus(connected) {
+      isConnected = connected;
+      const indicator = document.getElementById('realtimeIndicator');
+      const status = document.getElementById('realtimeStatus');
+      
+      if (connected) {
+        indicator.classList.remove('disconnected');
+        status.textContent = 'En direct';
+      } else {
+        indicator.classList.add('disconnected');
+        status.textContent = 'Déconnecté';
+      }
+    }
+    
+    // Arrêter les mises à jour quand la page n'est pas visible
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (updateInterval) {
+          clearInterval(updateInterval);
+        }
+      } else {
+        startRealtimeUpdates();
+      }
+    });
+
+    // Bouton retour menu
+    const btnMenuPrincipal = document.getElementById('btn-menu-principal');
+    if (btnMenuPrincipal) {
+      btnMenuPrincipal.addEventListener('click', () => {
+        window.location.assign('/static/index.html');
+      });
+      // Support tactile pour PWA (iOS)
+      btnMenuPrincipal.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.assign('/static/index.html');
+      });
+    }
+
+    // Support tactile pour le tooltip
+    document.querySelectorAll('.floating-button').forEach(btn => {
+      btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        btn.classList.add('show-tooltip');
+        setTimeout(() => btn.classList.remove('show-tooltip'), 2000);
+      });
+    });
+  </script>
+</body>
+</html>

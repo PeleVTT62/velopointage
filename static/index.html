@@ -1,0 +1,515 @@
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PéléVTT 62</title>
+
+  <!-- Manifest PWA -->
+  <link rel="manifest" href="/site.webmanifest">
+
+  <!-- Favicon et icônes -->
+  <link rel="icon" href="/static/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/android-chrome-512x512.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+
+  <!-- Meta iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Couleur thème -->
+  <meta name="theme-color" content="#3498db">
+
+  <!-- Framework UI moderne -->
+  <link rel="stylesheet" href="/static/css/common.css">
+  <link rel="stylesheet" href="/static/css/index.css">
+  
+  <!-- Preload des ressources critiques -->
+  <link rel="preload" href="/static/img/logo_pelevtt.png" as="image">
+  <link rel="preload" href="/static/js/ui-components.js" as="script">
+</head>
+<body>
+  <!-- Skip link pour accessibilité -->
+  <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+  
+  <!-- Conteneur principal -->
+  <main class="container" id="main-content">
+    <img 
+      src="/static/img/logo_pelevtt.png" 
+      alt="Logo Pélé VTT - Pèlerinage VTT du Pas-de-Calais" 
+      class="logo"
+      width="160"
+      height="160"
+      loading="eager"
+    />
+
+    <div class="title">Choisissez un mode</div>
+
+    <!-- Grille de modes -->
+    <nav class="modes-grid" aria-label="Navigation principale">
+      <a href="/static/carte.html" class="mode-card" aria-label="Carte - Visualisation en direct des équipes sur le parcours">
+        <div class="mode-icon">🗺️</div>
+        <div class="mode-info">
+          <div class="mode-title">Carte</div>
+          <div class="mode-description">Visualisation en direct</div>
+        </div>
+      </a>
+
+      <a href="/static/observateur.html" class="mode-card" aria-label="TTV Parcours - Pointage des équipes aux différents points">
+        <div class="mode-icon">📍</div>
+        <div class="mode-info">
+          <div class="mode-title">TTV Parcours</div>
+          <div class="mode-description">Pointage des équipes</div>
+        </div>
+      </a>
+
+      <a href="/static/etat.html" class="mode-card" aria-label="État des équipes - Modification des équipes">
+        <div class="mode-icon">🚴‍♂️</div>
+        <div class="mode-info">
+          <div class="mode-title">État des équipes</div>
+          <div class="mode-description">Modification du statut des équipes</div>
+        </div>
+      </a>
+
+      <a href="/static/log.html" class="mode-card" aria-label="Journal - Historique des actions et passages">
+        <div class="mode-icon">📋</div>
+        <div class="mode-info">
+          <div class="mode-title">Journal</div>
+          <div class="mode-description">Historique des actions</div>
+        </div>
+      </a>
+
+      <section id="external-section" class="external-section" aria-labelledby="external-title" hidden>
+        <h2 id="external-title" class="external-title">Ressources externes</h2>
+        <a href="https://synology.euphrate.ovh/sharing/kBW7GnQtR" target="_blank" rel="noopener noreferrer" class="mode-card" aria-label="Envoyer vidéo Zapping - Ouvre une nouvelle fenêtre vers le partage de fichiers">
+          <div class="mode-icon">🎥</div>
+          <div class="mode-info">
+            <div class="mode-title">Envoyer vidéo Zapping</div>
+            <div class="mode-description">Partage directe</div>
+          </div>
+        </a>
+      </section>
+    </nav>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>Pélé VTT 62 • Application de suivi des équipes</p>
+    <p class="version" id="app-version" style="font-size: 0.7rem; color: rgba(0,0,0,0.3); margin-top: 0.5rem;"></p>
+  </footer>
+
+  <!-- Settings button (engrenage) -->
+  <button id="settings-btn" class="settings-btn" data-tooltip="Paramètres" title="Paramètres" aria-label="Paramètres">⚙️</button>
+
+  <!-- Composants UI -->
+  <script src="/static/js/ui-components.js"></script>
+  
+  <!-- Application principale (ES6 modules) -->
+  <script defer src="/static/js/route-branding.js"></script>
+  <script type="module">
+    import connectionManager from '/static/js/connection.js';
+    import authManager from '/static/js/auth.js';
+    import { hapticFeedback, logger, getDeviceInfo } from '/static/js/utils.js';
+    
+    /**
+     * Enregistre le Service Worker pour PWA
+     */
+    async function registerServiceWorker() {
+      if ('serviceWorker' in navigator) {
+        try {
+          // Migration: supprimer les anciens SW limités au scope /static
+          const existingRegistrations = await navigator.serviceWorker.getRegistrations();
+          for (const reg of existingRegistrations) {
+            if (reg.scope.includes('/static/')) {
+              await reg.unregister();
+            }
+          }
+
+          const registration = await navigator.serviceWorker.register('/sw.js', {
+            updateViaCache: 'none'
+          });
+          logger.success('Service Worker enregistré:', registration.scope);
+
+          const onNewWorker = (newWorker) => {
+            if (!newWorker) return;
+            logger.info('🔄 Nouvelle version détectée, installation en cours...');
+
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                if (window.toast) {
+                  window.toast.info('🔄 Nouvelle version disponible ! Rechargement dans 3s...', 3000);
+                }
+                setTimeout(() => {
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                }, 3000);
+              }
+            });
+          };
+
+          // Si une nouvelle version est déjà en attente au moment du chargement
+          if (registration.waiting) {
+            onNewWorker(registration.waiting);
+          }
+          
+          // Écouter les mises à jour
+          registration.addEventListener('updatefound', () => {
+            onNewWorker(registration.installing);
+          });
+
+          // Recharger la page quand le nouveau SW prend la main
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.location.reload();
+          });
+
+          // Vérifier immédiatement les updates au démarrage
+          registration.update();
+          
+          // Vérifier les mises à jour toutes les heures
+          setInterval(() => {
+            registration.update();
+          }, 60 * 60 * 1000);
+          
+          // Afficher la version
+          displayVersion();
+        } catch (error) {
+          logger.error('Erreur enregistrement Service Worker:', error);
+        }
+      }
+    }
+    
+    /**
+     * Initialise l'application
+     */
+    async function initApp() {
+      logger.info('🚀 Initialisation de l\'application...');
+      
+      // Info appareil (debug)
+      const deviceInfo = getDeviceInfo();
+      logger.debug('Device:', deviceInfo);
+      
+      // Enregistrer le Service Worker
+      await registerServiceWorker();
+
+      // Vérification active de version (secours mobile si SW capricieux)
+      await displayVersion();
+      setInterval(displayVersion, 5 * 60 * 1000);
+
+      // Afficher les ressources externes uniquement pour Route 62
+      await applyRouteVisibility();
+      
+      // Démarrer la vérification périodique de connexion
+      connectionManager.startPeriodicCheck();
+      
+      // Écouter les changements de connexion
+      connectionManager.addListener((connected) => {
+        if (connected) {
+          logger.success('Connecté à l\'API');
+        } else {
+          logger.warn('Déconnecté de l\'API');
+        }
+      });
+      
+      // Bouton configuration
+      const settingsBtn = document.getElementById('settings-btn');
+      if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+          authManager.promptForPassword();
+        });
+        
+        // Gestion du tooltip sur mobile (touchstart)
+        settingsBtn.addEventListener('touchstart', function(e) {
+          // Afficher le tooltip
+          this.classList.add('show-tooltip');
+          
+          // Masquer après 0.5 seconde
+          setTimeout(() => {
+            this.classList.remove('show-tooltip');
+          }, 500);
+        });
+      }
+      
+      // Haptic feedback au chargement
+      hapticFeedback('light');
+      
+      // === GESTION INSTALLATION PWA (ANDROID/CHROME) ===
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // Afficher immédiatement le toast avec bouton d'installation (Android/Chrome)
+        if (window.toast && !deviceInfo.isStandalone) {
+          showInstallToast('android');
+        }
+      });
+      
+      // Détecter quand l'app est installée
+      window.addEventListener('appinstalled', () => {
+        logger.success('PWA installée !');
+        window.toast?.success('🎉 Application installée !');
+        hapticFeedback('success');
+        deferredPrompt = null;
+      });
+      
+      // === GESTION INSTALLATION iOS ===
+      // Si iOS et pas encore installé, afficher immédiatement le toast
+      if (deviceInfo.isIOS && !deviceInfo.isStandalone) {
+        showInstallToast('ios');
+      }
+
+      async function applyRouteVisibility() {
+        const externalSection = document.getElementById('external-section');
+        if (!externalSection) return;
+
+        try {
+          const res = await fetch('/api/route_context');
+          if (!res.ok) return;
+
+          const data = await res.json();
+          const isRoute62 = (data?.route_slug || '').toLowerCase() === 'route62';
+          externalSection.hidden = !isRoute62;
+        } catch (error) {
+          // En cas d'erreur, conserver la section masquée par défaut.
+          logger.warn('Contexte route indisponible:', error);
+        }
+      }
+      
+      /**
+       * Affiche le toast d'installation selon la plateforme
+       */
+      function showInstallToast(platform) {
+        const toastContainer = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast toast-info';
+        toast.setAttribute('role', 'alert');
+        
+        if (platform === 'ios') {
+          // Toast pour iOS
+          toast.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 0.75rem; justify-content: space-between; flex-wrap: wrap;">
+              <span style="flex: 1; min-width: 200px;">📱 Installez l'app : <span style="font-weight: 700;">Partager 📤</span> puis <span style="font-weight: 700;">Sur l'écran d'accueil</span></span>
+              <button id="pwa-install-btn" style="
+                padding: 0.5rem 1rem;
+                background: white;
+                color: var(--primary-color);
+                border: none;
+                border-radius: 8px;
+                font-weight: 600;
+                cursor: pointer;
+                white-space: nowrap;
+                transition: transform 0.2s;
+              ">
+                Guide détaillé
+              </button>
+            </div>
+          `;
+        } else {
+          // Toast pour Android/Chrome
+          toast.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 0.75rem; justify-content: space-between;">
+              <span>💡 Installez l'app pour un accès plus rapide !</span>
+              <button id="pwa-install-btn" style="
+                padding: 0.5rem 1rem;
+                background: white;
+                color: var(--primary-color);
+                border: none;
+                border-radius: 8px;
+                font-weight: 600;
+                cursor: pointer;
+                white-space: nowrap;
+                transition: transform 0.2s;
+              ">
+                Installer
+              </button>
+            </div>
+          `;
+        }
+        
+        toastContainer.appendChild(toast);
+        
+        // Gérer le clic sur le bouton
+        const installBtn = document.getElementById('pwa-install-btn');
+        if (installBtn) {
+          installBtn.addEventListener('mouseenter', (e) => {
+            e.target.style.transform = 'scale(1.05)';
+          });
+          
+          installBtn.addEventListener('mouseleave', (e) => {
+            e.target.style.transform = 'scale(1)';
+          });
+          
+          installBtn.addEventListener('click', async () => {
+            if (platform === 'ios') {
+              // Afficher le modal avec guide iOS
+              showIOSInstallModal();
+              hapticFeedback('light');
+            } else if (deferredPrompt) {
+              // Installation Android/Chrome
+              deferredPrompt.prompt();
+              const { outcome } = await deferredPrompt.userChoice;
+              
+              logger.info('Installation PWA:', outcome);
+              
+              if (outcome === 'accepted') {
+                window.toast.success('✅ App installée avec succès !');
+                hapticFeedback('success');
+              } else {
+                window.toast.info('ℹ️ Installation annulée');
+              }
+              
+              deferredPrompt = null;
+              toast.classList.add('removing');
+              setTimeout(() => {
+                if (toast.parentNode) {
+                  toast.parentNode.removeChild(toast);
+                }
+              }, 300);
+            }
+          });
+        }
+        
+        // Auto-remove après 20 secondes
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.classList.add('removing');
+            setTimeout(() => {
+              if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+              }
+            }, 300);
+          }
+        }, 20000);
+      }
+      
+      /**
+       * Affiche le modal avec guide d'installation iOS
+       */
+      function showIOSInstallModal() {
+        const overlay = document.createElement('div');
+        overlay.className = 'ios-install-modal-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'ios-modal-title');
+        
+        overlay.innerHTML = `
+          <div class="ios-install-modal">
+            <h2 id="ios-modal-title">📱 <span class="gradient-text">Installer sur iPhone/iPad</span></h2>
+            <p class="subtitle">Suivez ces étapes simples pour installer l'application</p>
+            
+            <div class="ios-install-note">
+              <p>⚠️ <strong>Important :</strong> Utilisez Safari (pas Chrome) pour installer l'application.</p>
+            </div>
+            
+            <div class="ios-install-steps">
+              <div class="ios-install-step">
+                <div class="ios-install-step-number">1</div>
+                <div class="ios-install-step-content">
+                  <strong>Appuyez sur le bouton Partager <span class="ios-install-icon">📤</span></strong>
+                  <span>Situé en bas de l'écran dans Safari (carré avec flèche vers le haut)</span>
+                </div>
+              </div>
+              
+              <div class="ios-install-step">
+                <div class="ios-install-step-number">2</div>
+                <div class="ios-install-step-content">
+                  <strong>Faites défiler et sélectionnez <span class="ios-install-icon">➕</span> "Sur l'écran d'accueil"</strong>
+                  <span>Dans le menu qui s'ouvre, cherchez cette option (peut nécessiter de défiler)</span>
+                </div>
+              </div>
+              
+              <div class="ios-install-step">
+                <div class="ios-install-step-number">3</div>
+                <div class="ios-install-step-content">
+                  <strong>Confirmez en appuyant sur "Ajouter"</strong>
+                  <span>L'icône apparaîtra sur votre écran d'accueil comme une vraie app !</span>
+                </div>
+              </div>
+            </div>
+            
+            <button class="ios-install-close" id="ios-modal-close">J'ai compris</button>
+          </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        
+        // Fermer le modal
+        const closeModal = () => {
+          overlay.style.animation = 'fadeOut 0.3s ease';
+          setTimeout(() => {
+            if (overlay.parentNode) {
+              overlay.parentNode.removeChild(overlay);
+            }
+          }, 300);
+        };
+        
+        // Clic sur le bouton fermer
+        const closeBtn = document.getElementById('ios-modal-close');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', closeModal);
+        }
+        
+        // Clic sur l'overlay
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) {
+            closeModal();
+          }
+        });
+        
+        // ESC pour fermer
+        const handleEscape = (e) => {
+          if (e.key === 'Escape') {
+            closeModal();
+            document.removeEventListener('keydown', handleEscape);
+          }
+        };
+        document.addEventListener('keydown', handleEscape);
+      }
+      
+      logger.success('Application initialisée');
+    }
+    
+    /**
+     * Affiche la version de l'application
+     */
+    async function displayVersion() {
+      try {
+        const response = await fetch('/api/app_version', { cache: 'no-store' });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (!data?.version) return;
+
+        const versionEl = document.getElementById('app-version');
+        if (versionEl) {
+          versionEl.textContent = `v${data.version}`;
+        }
+
+        // Filet de securite: forcer le reload si la version serveur change
+        const key = `pelevtt-version-${data.route_slug || 'default'}`;
+        const previousVersion = localStorage.getItem(key);
+
+        if (previousVersion && previousVersion !== data.version) {
+          window.toast?.info(`🔄 Mise à jour ${data.version} détectée, rechargement...`, 2500);
+          if (navigator.serviceWorker?.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+          }
+          localStorage.setItem(key, data.version);
+          setTimeout(() => window.location.reload(), 1500);
+          return;
+        }
+
+        localStorage.setItem(key, data.version);
+      } catch (_error) {
+        // Ignore silently: le pied de page reste inchangé en cas d'erreur réseau.
+      }
+    }
+    
+    // Lancer l'initialisation
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
+  </script>
+</body>
+</html>

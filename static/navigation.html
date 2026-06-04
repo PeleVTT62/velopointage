@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#3498db" />
+<title>PéléVTT 62 - Navigation</title>
+<link rel="manifest" href="/site.webmanifest" />
+<script defer src="/static/js/route-branding.js"></script>
+<link rel="icon" type="image/png" href="/static/img/logo_pelevtt.png" />
+<link rel="apple-touch-icon" href="/static/img/logo_pelevtt.png" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+/* === VARIABLES CSS === */
+:root {
+  --bg-primary: #ecf0f1;
+  --text-primary: #2c3e50;
+  --text-secondary: #7f8c8d;
+  --accent-primary: #3498db;
+  --accent-secondary: #2ecc71;
+  --success: #2ecc71;
+  --warning: #f39c12;
+  --danger: #e74c3c;
+  --gradient-primary: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.15);
+  --border-radius: 16px;
+  --transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, #d5dbdb 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 15s ease infinite;
+  color: var(--text-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Fond animé */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 20% 50%, rgba(52, 152, 219, 0.08) 0%, transparent 50%),
+              radial-gradient(circle at 80% 80%, rgba(46, 204, 113, 0.08) 0%, transparent 50%);
+  animation: bgShift 15s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes bgShift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-50px, -50px); }
+}
+
+#map {
+  flex: 1;
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+  position: relative;
+}
+
+/* Sidebar avec glassmorphisme */
+#sidebar {
+  position: relative;
+  width: 360px;
+  height: 100%;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: auto;
+  border-right: 1px solid var(--glass-border);
+  padding: 2rem;
+  box-shadow: 2px 0 24px rgba(52, 152, 219, 0.12);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  animation: slideIn 0.6s ease-out;
+}
+
+#sidebar h3 {
+  margin: 0 0 0.5rem 0;
+  text-align: center;
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+#sidebar h3 .title-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+#sidebar h3 .title-icon {
+  display: inline-block;
+  margin-right: 0.25rem;
+  -webkit-text-fill-color: initial;
+}
+
+/* Contenu sidebar */
+#sidebar-content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+#sidebar p.description {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+/* Liste signaleurs : boutons circulaires améliorés */
+#markerList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 1.5rem 0;
+  justify-content: center;
+  animation: fadeIn 0.8s ease-out;
+}
+
+.marker-item {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 700;
+  font-size: 1.35rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: var(--transition);
+  border: 3px solid white;
+  position: relative;
+  overflow: hidden;
+}
+
+.marker-item::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s;
+}
+
+.marker-item:hover::before {
+  width: 80px;
+  height: 80px;
+}
+
+.marker-item:hover {
+  transform: scale(1.15) translateY(-4px);
+  box-shadow: 0 8px 24px rgba(52, 152, 219, 0.45);
+}
+
+.marker-item:active {
+  transform: scale(0.95);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Container boutons navigation */
+#navBtnContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 1.5rem;
+  animation: fadeIn 1s ease-out;
+}
+
+#navBtnContainer a {
+  display: block;
+  padding: 1.2rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  color: white;
+  text-align: center;
+  transition: var(--transition);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+#navBtnContainer a::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+#navBtnContainer a:hover::before {
+  width: 400px;
+  height: 400px;
+}
+
+#navBtnContainer a:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+#navBtnContainer a:active {
+  transform: translateY(-1px);
+}
+
+/* Conteneur pour les boutons fixes */
+#fixedBtnContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 2px solid var(--glass-border);
+}
+
+#fixedBtnContainer a {
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  color: white;
+  text-align: center;
+  transition: var(--transition);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+#fixedBtnContainer a::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+#fixedBtnContainer a:hover::before {
+  width: 400px;
+  height: 400px;
+}
+
+#fixedBtnContainer a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+#fixedBtnContainer a:active {
+  transform: translateY(0);
+}
+
+/* Bouton flottant retour */
+.floating-button {
+  position: fixed;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: var(--shadow-lg);
+  transition: var(--transition);
+  z-index: 10000;
+  text-decoration: none;
+}
+
+.floating-button::before {
+  display: none !important;
+}
+
+.floating-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(52, 152, 219, 0.5);
+}
+
+.floating-button:active {
+  transform: translateY(-1px);
+}
+
+#btn-retour {
+  bottom: 20px;
+  right: 20px;
+}
+
+/* Tooltip pour bouton flottant */
+.floating-button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: 70px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: white;
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.floating-button:hover::after {
+  opacity: 1;
+}
+
+/* Desktop layout - carte prend l'espace restant */
+@media(min-width: 769px) {
+  #sidebar {
+    flex-shrink: 0;
+  }
+  
+  #map {
+    flex: 1;
+  }
+}
+
+/* Mobile */
+@media(max-width: 768px) {
+  body, html {
+    flex-direction: column;
+  }
+
+  #sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 50vh;
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+    padding: 1.25rem;
+  }
+
+  #sidebar h3 {
+    font-size: 1.75rem;
+  }
+
+  #markerList {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding: 1rem 0;
+    gap: 12px;
+  }
+
+  .marker-item {
+    width: 56px;
+    height: 56px;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+  }
+
+  #map {
+    margin: 0;
+    height: 50vh;
+    position: relative;
+  }
+
+  #navBtnContainer {
+    gap: 10px;
+  }
+
+  #navBtnContainer a {
+    padding: 0.9rem 1.2rem;
+    font-size: 0.9rem;
+  }
+
+  #fixedBtnContainer {
+    gap: 8px;
+    padding-top: 1rem;
+  }
+
+  #fixedBtnContainer a {
+    padding: 0.85rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .floating-button::after {
+    display: none;
+  }
+}
+
+/* Décaler les boutons zoom Leaflet */
+.leaflet-control-zoom {
+  margin-top: 10px;
+}
+
+@media(max-width: 768px) {
+  .leaflet-control-zoom {
+    top: 10px;
+    left: 10px;
+  }
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg);
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+}
+
+.leaflet-popup-tip {
+  background: #2980b9;
+}
+
+.leaflet-popup-close-button {
+  display: none;
+}
+
+.nav-popup {
+  min-width: 190px;
+  padding: 0.95rem;
+}
+
+.nav-popup-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.75rem;
+  line-height: 1.35;
+}
+
+.nav-popup-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.16);
+  color: white;
+  font-weight: 700;
+  font-size: 0.98rem;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.nav-popup-link,
+.nav-popup-link:visited,
+.nav-popup-link:hover,
+.nav-popup-link:active,
+.nav-popup-link span {
+  color: white;
+}
+
+.nav-popup-link:active {
+  transform: scale(0.98);
+}
+
+.nav-popup-link-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.nav-popup-hint {
+  margin-top: 0.55rem;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.82);
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="sidebar-content">
+    <h3><span class="title-icon">🧭</span><span class="title-text">Navigation</span></h3>
+    <p class="description">Sélectionnez votre numéro de position pour obtenir l'itinéraire.</p>
+    <div id="markerList">Chargement…</div>
+    <div id="navBtnContainer"></div>
+    <div id="fixedBtnContainer"></div>
+  </div>
+</div>
+<div id="map"></div>
+
+<!-- Bouton flottant retour -->
+<a id="btn-retour" class="floating-button" href="/static/observateur.html" data-tooltip="Retour">↩️</a>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const api = "/api"; 
+let map = L.map('map').setView([46.6,2.6],6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
+
+let markerLayer = L.layerGroup().addTo(map);
+const markerListDiv = document.getElementById("markerList");
+const navBtnContainer = document.getElementById("navBtnContainer");
+const fixedBtnContainer = document.getElementById("fixedBtnContainer");
+let currentTraceBounds = null;
+let pointMarkers = new Map();
+let midiMarkerRef = null;
+let arrivalMarkerRef = null;
+
+// S'assurer que la carte est correctement dimensionnée
+setTimeout(() => map.invalidateSize(), 200);
+
+function buildNavigationPopup(label, gmapsLink) {
+  return `
+    <div class="nav-popup">
+      <div class="nav-popup-title">${label}</div>
+      <a class="nav-popup-link" href="${gmapsLink}" target="_blank" rel="noopener">
+        <span class="nav-popup-link-icon">🧭</span>
+        <span>Ouvrir l'itineraire</span>
+      </a>
+      <div class="nav-popup-hint">Appuyez pour lancer la navigation</div>
+    </div>`;
+}
+
+function fitToCurrentTrace() {
+  if (currentTraceBounds instanceof L.LatLngBounds && currentTraceBounds.isValid()) {
+    map.invalidateSize();
+    map.fitBounds(currentTraceBounds, {padding: [50, 50]});
+  }
+}
+
+function focusMarker(marker, latLng, zoom = 17) {
+  if (!marker) return;
+  map.setView(latLng, zoom);
+  marker.openPopup();
+}
+
+map.off("click", fitToCurrentTrace);
+map.on("click", fitToCurrentTrace);
+
+async function loadActiveGPX() {
+  try {
+    const res = await fetch(`${api}/gpx_files`);
+    if(!res.ok) throw new Error("Erreur récupération GPX actif");
+    const data = await res.json();
+    if(!data.active) throw new Error("Aucun GPX actif trouvé");
+
+    const gpxPath = `/static/gpx/${encodeURIComponent(data.active)}`;
+    markerLayer.clearLayers();
+    markerListDiv.innerHTML = "Analyse du GPX…";
+
+    const gpxRes = await fetch(gpxPath);
+    if(!gpxRes.ok) throw new Error("Erreur chargement GPX");
+    const gpxText = await gpxRes.text();
+
+    parseAndDisplayGPX(gpxText);
+  } catch(err){
+    markerListDiv.innerHTML = `<em>${err.message}</em>`;
+    console.error(err);
+  }
+}
+
+async function parseAndDisplayGPX(gpxText){
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(gpxText,"application/xml");
+  pointMarkers = new Map();
+  midiMarkerRef = null;
+  arrivalMarkerRef = null;
+
+  const trkpts = Array.from(xmlDoc.getElementsByTagName("trkpt")).map(pt=>[
+    parseFloat(pt.getAttribute("lat")),
+    parseFloat(pt.getAttribute("lon"))
+  ]);
+
+  if(window.gpxLayer){ map.removeLayer(window.gpxLayer); }
+  window.gpxLayer = L.polyline(trkpts,{color:"blue", weight: 4, opacity: 0.7}).addTo(map);
+
+  // Collecter tous les bounds (tracé + waypoints)
+  let bounds = trkpts.length > 0 ? L.latLngBounds(trkpts) : [];
+  let listHtml = "";
+  let signaleurIndex = 1;
+  let midiCoords = null; // <--- pour stocker le "Ravitaillement chaud"
+
+  const wpts = xmlDoc.getElementsByTagName("wpt");
+  for(let i=0;i<wpts.length;i++){
+    const lat=parseFloat(wpts[i].getAttribute("lat"));
+    const lon=parseFloat(wpts[i].getAttribute("lon"));
+    const name=wpts[i].getElementsByTagName("name")[0]?.textContent||"";
+    const sym=wpts[i].getElementsByTagName("sym")[0]?.textContent||"";
+
+    const lowerName = name.toLowerCase();
+    const lowerSym = sym.toLowerCase();
+
+    // repère midi
+    if(lowerName.includes("ravitaillement chaud") || lowerName.includes("restauration")){
+      midiCoords = [lat, lon];
+    }
+
+    if(!(lowerName.includes("signaleur") || lowerSym.includes("signaleur") || lowerName.includes("danger") || lowerSym.includes("danger"))) continue;
+
+    const gmapsLink=`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+
+    const marker = L.marker([lat,lon],{
+      icon:L.divIcon({
+        className:"signaleur-icon",
+        html:`<div style="background:#3388ff;color:white;border-radius:50%;width:28px;height:28px;text-align:center;line-height:28px;font-weight:bold;">${signaleurIndex}</div>`,
+        iconSize:[28,28],
+        iconAnchor:[14,14]
+      })
+    }).bindPopup(buildNavigationPopup(`${signaleurIndex}. ${name || "(sans nom)"}`, gmapsLink));
+
+    marker.on("click", () => {
+      focusMarker(marker, [lat, lon]);
+    });
+
+    marker.addTo(markerLayer);
+    pointMarkers.set(String(signaleurIndex), marker);
+    listHtml += `<div class="marker-item" data-lat="${lat}" data-lon="${lon}" data-point-num="${signaleurIndex}">${signaleurIndex}</div>`;
+    if (bounds instanceof L.LatLngBounds) {
+      bounds.extend([lat, lon]);
+    }
+    signaleurIndex++;
+  }
+
+  if(midiCoords){
+    const midiLink = `https://www.google.com/maps/dir/?api=1&destination=${midiCoords[0]},${midiCoords[1]}`;
+    const midiMarker = L.marker(midiCoords, {
+      title: "Repas du midi",
+      icon: L.divIcon({
+        className: "custom-icon",
+        html: '<div style="background:#f57c00;color:white;border-radius:50%;width:28px;height:28px;text-align:center;line-height:28px;font-weight:bold;">🥪</div>',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      })
+    }).bindPopup(buildNavigationPopup("Repas du midi 🥪", midiLink));
+
+    midiMarker.on("click", () => {
+      focusMarker(midiMarker, midiCoords);
+    });
+
+    midiMarker.addTo(markerLayer);
+    midiMarkerRef = midiMarker;
+
+    if (bounds instanceof L.LatLngBounds) {
+      bounds.extend(midiCoords);
+    }
+  }
+
+  currentTraceBounds = bounds instanceof L.LatLngBounds && bounds.isValid() ? bounds.pad(0.05) : null;
+
+  markerListDiv.innerHTML = listHtml || "<em>Aucune position trouvée.</em>";
+  
+  // Ajuster la vue pour afficher tout le tracé
+  if (bounds instanceof L.LatLngBounds && bounds.isValid()) {
+    // Attendre que la carte soit correctement dimensionnée
+    setTimeout(() => {
+      map.invalidateSize();
+      map.fitBounds(bounds, {padding: [50, 50]});
+    }, 100);
+  }
+
+  // reset boutons
+  fixedBtnContainer.innerHTML = "";
+
+  // Boutons fixes (midi et arrivée)
+  if(midiCoords){
+    fixedBtnContainer.innerHTML += `<a href="#" data-focus-target="midi" style="background:linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
+      🥪 Aller à la position du midi
+    </a>`;
+  }
+
+  if(trkpts.length){
+    const [startLat,startLon] = trkpts[0];
+    const [endLat,endLon] = trkpts[trkpts.length-1];
+    const startLink = `https://www.google.com/maps/dir/?api=1&destination=${startLat},${startLon}`;
+    const endLink = `https://www.google.com/maps/dir/?api=1&destination=${endLat},${endLon}`;
+
+    const startMarker = L.marker([startLat,startLon], {
+      title: "Départ",
+      icon: L.divIcon({
+        className:"custom-icon",
+        html:'<div style="background:#2ecc71;color:white;border-radius:50%;width:28px;height:28px;text-align:center;line-height:28px;font-weight:bold;">▶</div>',
+        iconSize:[28,28],
+        iconAnchor:[14,14]
+      })
+    }).bindPopup(buildNavigationPopup("Départ ▶", startLink));
+
+    startMarker.on("click", () => {
+      focusMarker(startMarker, [startLat, startLon]);
+    });
+
+    startMarker.addTo(markerLayer);
+
+    const endMarker = L.marker([endLat,endLon], {
+      title: "Arrivée",
+      icon: L.divIcon({
+        className:"custom-icon",
+        html:'<div style="background:#e74c3c;color:white;border-radius:50%;width:28px;height:28px;text-align:center;line-height:28px;font-weight:bold;">🏁</div>',
+        iconSize:[28,28],
+        iconAnchor:[14,14]
+      })
+    }).bindPopup(buildNavigationPopup("Arrivée 🏁", endLink));
+
+    endMarker.on("click", () => {
+      focusMarker(endMarker, [endLat, endLon]);
+    });
+
+    endMarker.addTo(markerLayer);
+    arrivalMarkerRef = endMarker;
+
+    fixedBtnContainer.innerHTML += `<a href="#" data-focus-target="arrival" style="background:linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);">
+      🏁 Aller à l'arrivée
+    </a>`;
+  }
+
+  // Boutons par clic sur numéro
+  document.querySelectorAll(".marker-item").forEach(el=>{
+    el.addEventListener("click",()=>{
+      const lat = parseFloat(el.dataset.lat);
+      const lon = parseFloat(el.dataset.lon);
+      focusMarker(pointMarkers.get(el.dataset.pointNum), [lat, lon]);
+    });
+  });
+
+  fixedBtnContainer.querySelectorAll("a[data-focus-target]").forEach(el => {
+    el.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (el.dataset.focusTarget === "midi" && midiCoords && midiMarkerRef) {
+        focusMarker(midiMarkerRef, midiCoords);
+      }
+      if (el.dataset.focusTarget === "arrival" && trkpts.length && arrivalMarkerRef) {
+        const [endLat, endLon] = trkpts[trkpts.length - 1];
+        focusMarker(arrivalMarkerRef, [endLat, endLon]);
+      }
+    });
+  });
+}
+
+// Support tactile pour le bouton flottant
+document.addEventListener('DOMContentLoaded', () => {
+  const btnRetour = document.getElementById('btn-retour');
+  if (btnRetour) {
+    btnRetour.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.location.assign('/static/observateur.html');
+    });
+    btnRetour.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.location.assign('/static/observateur.html');
+    });
+  }
+
+  // Enregistrer le service worker pour le support PWA
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => {
+        console.log('✅ Service Worker enregistré:', registration.scope);
+        
+        // Vérifier les mises à jour toutes les 30 secondes
+        setInterval(() => {
+          registration.update().catch(err => {
+            console.warn('Erreur lors de la vérification de mise à jour:', err);
+          });
+        }, 30000);
+
+        // Écouter les mises à jour du Service Worker
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // Nouvelle version disponible
+              if (confirm('🔄 Une nouvelle version est disponible. Recharger maintenant ?')) {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                window.location.reload();
+              }
+            }
+          });
+        });
+      })
+      .catch(err => console.error('❌ Erreur Service Worker:', err));
+
+    // Recharger la page quand un nouveau Service Worker prend le contrôle
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    });
+  }
+});
+
+loadActiveGPX();
+</script>
+</body>
+</html>

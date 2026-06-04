@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PéléVTT 62 - État de l'équipe</title>
+  <script defer src="/static/js/route-branding.js"></script>
+  <style>
+    :root {
+      --bg-primary: #ecf0f1;
+      --text-primary: #2c3e50;
+      --text-secondary: #7f8c8d;
+      --border-color: rgba(52, 152, 219, 0.2);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.15);
+      --accent-primary: #3498db;
+      --success: #2ecc71;
+      --danger: #e74c3c;
+      --warning: #f39c12;
+      --border-radius: 16px;
+      --transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      --gradient-primary: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
+      --glass-bg: rgba(255, 255, 255, 0.8);
+      --glass-border: rgba(255, 255, 255, 0.3);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, #d5dbdb 100%);
+      background-size: 200% 200%;
+      animation: gradientShift 15s ease infinite;
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 1.5rem;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at 20% 50%, rgba(52, 152, 219, 0.08) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 80%, rgba(46, 204, 113, 0.08) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+      animation: bgShift 15s ease-in-out infinite;
+    }
+
+    @keyframes bgShift {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(-50px, -50px); }
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Cards accordéon */
+    .card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      padding: 1.5rem;
+      border-radius: var(--border-radius);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 1.5rem;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .card.collapsed {
+      padding: 1rem 1.5rem;
+    }
+
+    .card.collapsed .card-content {
+      display: none;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .card-header h2 {
+      margin: 0;
+      display: inline;
+    }
+
+    .card-header-summary {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      margin-left: 0.5rem;
+    }
+
+    .card-toggle {
+      background: none;
+      border: none;
+      color: var(--accent-primary);
+      font-size: 0.9rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      transition: var(--transition);
+      font-weight: 600;
+    }
+
+    .card-toggle:hover {
+      transform: scale(1.1);
+    }
+
+    .card-content {
+      margin-top: 1rem;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 0 0 2rem 0;
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 30px rgba(52, 152, 219, 0.3);
+      animation: fadeIn 0.8s ease-out;
+    }
+
+    h2 {
+      margin: 2rem 0 1rem 0;
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Section login */
+    #login {
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      padding: 2rem;
+      border-radius: var(--border-radius);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--shadow-lg);
+      animation: fadeIn 0.5s ease-out;
+      margin-bottom: 2rem;
+    }
+
+    #login label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    #login input {
+      width: 100%;
+      padding: 0.8rem;
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: var(--transition);
+      margin-bottom: 1rem;
+    }
+
+    #login input:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    #login button {
+      width: 100%;
+      padding: 1rem;
+      background: var(--gradient-primary);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: var(--shadow-sm);
+    }
+
+    #login button:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    #login button:active {
+      transform: translateY(0);
+    }
+
+    /* Interface principale */
+    #interface {
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .header-observateur {
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      padding: 1.2rem;
+      border-radius: var(--border-radius);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .header-observateur > div:first-child {
+      font-size: 1.1rem;
+      color: var(--text-primary);
+    }
+
+    .header-observateur strong {
+      color: var(--accent-primary);
+      font-weight: 700;
+    }
+
+    .gps-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: var(--transition);
+    }
+
+    .gps-indicator.searching {
+      background: rgba(243, 156, 18, 0.1);
+      color: var(--warning);
+      border: 1px solid rgba(243, 156, 18, 0.3);
+    }
+
+    .gps-indicator.good {
+      background: rgba(46, 204, 113, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(46, 204, 113, 0.3);
+    }
+
+    .gps-indicator.medium {
+      background: rgba(243, 156, 18, 0.1);
+      color: var(--warning);
+      border: 1px solid rgba(243, 156, 18, 0.3);
+    }
+
+    .gps-indicator.poor {
+      background: rgba(231, 76, 60, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(231, 76, 60, 0.3);
+    }
+
+    .header-observateur-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .header-observateur-buttons button {
+      padding: 0.6rem 1rem;
+      background: white;
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: var(--transition);
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+    }
+
+    .header-observateur-buttons button:hover {
+      border-color: var(--accent-primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Team selection cards */
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .team-card {
+      padding: 1.5rem 1rem;
+      border: 3px solid transparent;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+      background: white;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .team-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: var(--team-color);
+      transition: height 0.3s ease;
+    }
+
+    .team-card:hover::before {
+      height: 100%;
+      opacity: 0.1;
+    }
+
+    .team-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .team-card.selected {
+      border-color: var(--team-color);
+      background: rgba(var(--team-color-rgb), 0.05);
+      box-shadow: 0 0 0 3px rgba(var(--team-color-rgb), 0.2);
+    }
+
+    .team-card.selected::before {
+      height: 100%;
+      opacity: 0.1;
+    }
+
+    .team-card-name {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .team-card-badge {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--team-color);
+      margin-bottom: 0.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    /* État actuel */
+    .current-state {
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.5);
+    
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      padding: 1.5rem;
+      border-radius: var(--border-radius);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 2rem;
+      text-align: center;
+  }
+
+    .current-state h3 {
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+    }
+
+    .state-value {
+      font-size: 2rem;
+      font-weight: 800;
+      padding: 1rem;
+      border-radius: 12px;
+      margin-bottom: 0.5rem;
+    }
+
+    .state-value.roule {
+      background: rgba(46, 204, 113, 0.1);
+      color: var(--success);
+    }
+
+    .state-value.pause {
+      background: rgba(243, 156, 18, 0.1);
+      color: var(--warning);
+    }
+
+    .state-value.repas {
+      background: rgba(52, 152, 219, 0.1);
+      color: var(--accent-primary);
+    }
+
+    .state-value.temps-spi {
+      background: rgba(155, 89, 182, 0.1);
+      color: #9b59b6;
+    }
+
+    .state-value.non-partie {
+      background: rgba(149, 165, 166, 0.1);
+      color: #95a5a6;
+    }
+
+    .state-value.arrivee {
+      background: rgba(230, 126, 34, 0.1);
+      color: #e67e22;
+    }
+
+    .state-timestamp {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+    }
+
+    /* Boutons d'état */
+    .state-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .state-button {
+      padding: 1.5rem 1rem;
+      border: none;
+      border-radius: var(--border-radius);
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      color: white;
+    }
+
+    .state-button .icon {
+      font-size: 2rem;
+    }
+
+    .state-button:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .state-button:active {
+      transform: translateY(-1px);
+    }
+
+    .state-button.roule {
+      background: var(--success);
+    }
+
+    .state-button.pause {
+      background: var(--warning);
+    }
+
+    .state-button.repas {
+      background: var(--accent-primary);
+    }
+
+    .state-button.temps-spi {
+      background: #9b59b6;
+    }
+
+    .state-button.non-partie {
+      background: #95a5a6;
+    }
+
+    .state-button.arrivee {
+      background: #e67e22;
+    }
+
+    /* Boutons d'assistance */
+    .assistance-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .assistance-button {
+      padding: 1.2rem;
+      background: white;
+      border: 2px solid var(--border-color);
+      border-radius: var(--border-radius);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .assistance-button .icon {
+      font-size: 1.5rem;
+    }
+
+    .assistance-button:hover {
+      border-color: var(--danger);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+      background: rgba(231, 76, 60, 0.05);
+    }
+
+    .assistance-button:active {
+      transform: translateY(0);
+    }
+
+    /* Historique */
+    .history {
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    .history-item {
+      padding: 1rem;
+      background: white;
+      border-radius: 12px;
+      margin-bottom: 0.8rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      animation: slideIn 0.3s ease-out;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .history-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .history-item-state {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .history-item-time {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    /* Boutons flottants */
+    .floating-button {
+      position: fixed;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--gradient-primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-lg);
+      transition: var(--transition);
+      z-index: 10000;
+      padding: 0;
+      margin: 0;
+      text-decoration: none;
+    }
+
+    .floating-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(52, 152, 219, 0.5);
+    }
+
+    .floating-button:active {
+      transform: translateY(-1px);
+    }
+
+    #btn-menu-principal {
+      bottom: 20px;
+      right: 20px;
+    }
+
+    /* Tooltip pour bouton flottant */
+    .floating-button::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      right: 70px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: white;
+      color: var(--text-primary);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      white-space: nowrap;
+      box-shadow: var(--shadow-md);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .floating-button:hover::after,
+    .floating-button.show-tooltip::after {
+      opacity: 1;
+    }
+
+    /* Messages de confirmation */
+    .message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 2rem;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-lg);
+      z-index: 2000;
+      min-width: 300px;
+      text-align: center;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .message.success {
+      border-top: 4px solid var(--success);
+    }
+
+    .message.error {
+      border-top: 4px solid var(--danger);
+    }
+
+    .message h3 {
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+
+    .message-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1999;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--gradient-primary);
+      color: white;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      font-weight: 600;
+      font-size: 1rem;
+      z-index: 10000;
+      animation: slideDown 0.3s ease-out;
+      min-width: 250px;
+      text-align: center;
+    }
+
+    .toast.success {
+      background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+    }
+
+    .toast.error {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem;
+      }
+
+      h1 {
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .card {
+        padding: 1.2rem;
+        margin-bottom: 1.2rem;
+      }
+
+      .state-buttons {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .assistance-buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .team-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 0.75rem;
+      }
+
+      h1 {
+        font-size: 1.75rem;
+        margin-bottom: 1.2rem;
+      }
+
+      .card {
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      #login, #interface {
+        padding: 1rem;
+      }
+
+      .state-buttons {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .team-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .team-card {
+        padding: 1rem 0.5rem;
+      }
+
+      .team-card-name {
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>État de l'équipe</h1>
+
+    <div id="login">
+      <label for="observateur">Prénom de l'organisateur :</label>
+      <input type="text" id="observateur" placeholder="Organisateur" autocomplete="off" />
+      <button id="btn-connecter">Se connecter</button>
+    </div>
+
+    <div id="interface" class="hidden">
+      <div class="header-observateur">
+        <div>Organisateur : <strong><span id="nom-affiche"></span></strong></div>
+        <div class="gps-indicator searching" id="gps-indicator">
+          <span>📡</span>
+          <span id="gps-quality">Recherche GPS...</span>
+        </div>
+        <div class="header-observateur-buttons">
+          <button id="btn-changer-observateur">✏️ Modifier</button>
+        </div>
+      </div>
+
+      <!-- Sélecteur d'équipe -->
+      <div class="card" id="team-card">
+        <div class="card-header" onclick="toggleCard('team-card')">
+          <div>
+            <h2 style="display: inline; margin: 0;">👥 Sélection équipe</h2>
+            <span class="card-header-summary" id="team-summary"></span>
+          </div>
+          <button class="card-toggle" id="team-toggle">Replier</button>
+        </div>
+        
+        <div class="card-content" id="team-content">
+          <label style="display: block; margin-bottom: 0.8rem; font-weight: 600; font-size: 1rem;">Sélectionner une équipe :</label>
+          <div class="team-grid" id="team-grid">
+            <!-- Les équipes seront chargées ici -->
+          </div>
+        </div>
+      </div>
+
+      <!-- État et actions -->
+      <div class="card hidden" id="state-card">
+        <div class="card-header" onclick="toggleCard('state-card')">
+          <div>
+            <h2 style="display: inline; margin: 0;">📊 État et actions</h2>
+          </div>
+          <button class="card-toggle" id="state-toggle">Replier</button>
+        </div>
+        
+        <div class="card-content" id="state-content">
+          <!-- État actuel -->
+          <div class="current-state">
+            <h3>État actuel</h3>
+            <div class="state-value" id="current-state-value">-</div>
+            <div class="state-timestamp" id="current-state-time">-</div>
+          </div>
+
+          <!-- Boutons de changement d'état -->
+          <h2>Changer l'état</h2>
+          <div class="state-buttons">
+            
+            <button class="state-button roule" data-state="roule">
+              <span class="icon">🚴</span>
+              <span>Roule</span>
+            </button>
+            <button class="state-button pause" data-state="pause">
+              <span class="icon">⏸️</span>
+              <span>Pause</span>
+            </button>
+            <button class="state-button repas" data-state="repas">
+              <span class="icon">🍽️</span>
+              <span>Repas</span>
+            </button>
+            <button class="state-button temps-spi" data-state="temps-spi">
+              <span class="icon">⏱️</span>
+              <span>Temps Spi</span>
+            </button>
+            <button class="state-button arrivee" data-state="arrivee">
+              <span class="icon">🏁</span>
+              <span>Arrivée</span>
+            </button>
+          </div>
+
+          <!-- Boutons d'assistance (masqués pour cette page) -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Bouton flottant retour menu -->
+    <button id="btn-menu-principal" class="floating-button" data-tooltip="Retour menu">↩️</button>
+  </div>
+
+  <script>
+    // ===== VARIABLES GLOBALES =====
+    let currentObservateur = '';
+    let currentTeamId = null;
+    let currentTeamData = null;
+    let gpsWatchId = null;
+    let currentPosition = null;
+    let allTeams = [];
+
+    // ===== GESTION GPS =====
+    function startGPSTracking() {
+      if (!navigator.geolocation) {
+        updateGPSIndicator('poor', 'GPS non disponible');
+        return;
+      }
+
+      const options = {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 5000
+      };
+
+      gpsWatchId = navigator.geolocation.watchPosition(
+        (position) => {
+          currentPosition = position;
+          const accuracy = position.coords.accuracy;
+          
+          if (accuracy < 20) {
+            updateGPSIndicator('good', `GPS: ${accuracy.toFixed(0)}m`);
+          } else if (accuracy < 50) {
+            updateGPSIndicator('medium', `GPS: ${accuracy.toFixed(0)}m`);
+          } else {
+            updateGPSIndicator('poor', `GPS: ${accuracy.toFixed(0)}m`);
+          }
+        },
+        (error) => {
+          console.error('Erreur GPS:', error);
+          updateGPSIndicator('poor', 'GPS indisponible');
+        },
+        options
+      );
+    }
+
+    function updateGPSIndicator(quality, text) {
+      const indicator = document.getElementById('gps-indicator');
+      const qualityText = document.getElementById('gps-quality');
+      
+      indicator.className = `gps-indicator ${quality}`;
+      qualityText.textContent = text;
+    }
+
+    function stopGPSTracking() {
+      if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+      }
+    }
+
+    // ===== AUTHENTIFICATION =====
+    function connectUser(nom) {
+      currentObservateur = nom;
+      localStorage.setItem('observateur', nom);
+      document.getElementById('nom-affiche').textContent = nom;
+      document.getElementById('login').classList.add('hidden');
+      document.getElementById('interface').classList.remove('hidden');
+      startGPSTracking();
+      loadTeams();
+    }
+    
+    const btnConnecter = document.getElementById('btn-connecter');
+    if (btnConnecter) {
+      btnConnecter.addEventListener('click', () => {
+        const nom = document.getElementById('observateur').value.trim();
+        if (nom) connectUser(nom);
+      });
+    }
+
+    const inputObservateur = document.getElementById('observateur');
+    if (inputObservateur) {
+      inputObservateur.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') btnConnecter?.click();
+      });
+    }
+
+    const btnChangerObservateur = document.getElementById('btn-changer-observateur');
+    if (btnChangerObservateur) {
+      btnChangerObservateur.addEventListener('click', () => {
+        stopGPSTracking();
+        document.getElementById('interface').classList.add('hidden');
+        document.getElementById('login').classList.remove('hidden');
+        document.getElementById('observateur').value = '';
+        document.getElementById('observateur').focus();
+        currentTeamId = null;
+        currentTeamData = null;
+        localStorage.removeItem('observateur');
+      });
+    }
+    
+    // Auto-connexion si déjà connecté
+    const savedNom = localStorage.getItem('observateur');
+    if (savedNom) {
+      document.getElementById('observateur').value = savedNom;
+      connectUser(savedNom);
+    }
+
+    // ===== CHARGEMENT DES ÉQUIPES =====
+    async function loadTeams() {
+      try {
+        const response = await fetch('/api/equipes');
+        if (!response.ok) throw new Error('Erreur chargement équipes');
+        
+        const teams = await response.json();
+        allTeams = teams;
+        
+        const grid = document.getElementById('team-grid');
+        if (!grid) return;
+        
+        grid.innerHTML = '';
+        teams.forEach(team => {
+          const teamId = team.id;
+          const teamName = team.nom;
+          
+          const card = document.createElement('div');
+          card.className = 'team-card';
+          card.dataset.id = teamId;
+          card.dataset.nom = teamName;
+          card.dataset.couleur = team.couleur || '#3498db';
+          
+          // Convertir la couleur hex en RGB pour l'utiliser avec opacity
+          const rgb = hexToRgb(team.couleur || '#3498db');
+          card.style.setProperty('--team-color', team.couleur || '#3498db');
+          card.style.setProperty('--team-color-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+          
+          card.innerHTML = `
+            <div class="team-card-badge"></div>
+            <div class="team-card-name">${teamName}</div>
+          `;
+          
+          card.addEventListener('click', () => {
+            console.log('👆 Clic sur équipe - ID:', teamId);
+            selectTeam(teamId, teamName);
+          });
+          grid.appendChild(card);
+        });
+        console.log('✅ Cards créées dans le DOM');
+      } catch (error) {
+        console.error('❌ Erreur:', error);
+        showToast('Erreur chargement équipes', 'error');
+      }
+    }
+
+    // Convertir hex en RGB
+    function hexToRgb(hex) {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 52, g: 152, b: 219 };
+    }
+
+    // ===== SÉLECTION D'ÉQUIPE =====
+    function selectTeam(teamId, teamName) {
+      if (!teamId) {
+        document.getElementById('state-card').classList.add('hidden');
+        currentTeamId = null;
+        currentTeamData = null;
+        return;
+      }
+
+      currentTeamId = parseInt(teamId);
+      
+      // Mettre à jour l'affichage
+      document.querySelectorAll('.team-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.id == teamId);
+      });
+      // Mettre à jour le résumé et replier la sélection d'équipe
+      const teamSummary = document.getElementById('team-summary');
+      if (teamSummary) teamSummary.textContent = `- ${teamName}`;
+      
+      const teamCard = document.getElementById('team-card');
+      const teamToggle = document.getElementById('team-toggle');
+      if (teamCard && teamToggle) {
+        teamCard.classList.add('collapsed');
+        teamToggle.textContent = 'Modifier';
+      }
+      
+      // Afficher et ouvrir la card d'état
+      const stateCard = document.getElementById('state-card');
+      const stateToggle = document.getElementById('state-toggle');
+      if (stateCard) {
+        stateCard.classList.remove('hidden');
+        stateCard.classList.remove('collapsed');
+        if (stateToggle) stateToggle.textContent = 'Replier';
+      }
+      loadTeamState();
+    }
+
+    // ===== TOGGLE ACCORDÉON =====
+    function toggleCard(cardId) {
+      const card = document.getElementById(cardId);
+      const toggle = card.querySelector('.card-toggle');
+      
+      if (card.classList.contains('collapsed')) {
+        card.classList.remove('collapsed');
+        toggle.textContent = 'Replier';
+      } else {
+        card.classList.add('collapsed');
+        toggle.textContent = 'Modifier';
+      }
+    }
+
+    // ===== CHARGEMENT DE L'ÉTAT D'UNE ÉQUIPE =====
+    async function loadTeamState() {
+      if (!currentTeamId) return;
+
+      try {
+        currentTeamData = allTeams.find(team => team.id === currentTeamId);
+        
+        if (!currentTeamData) {
+          showToast('Équipe non trouvée', 'error');
+          return;
+        }
+        // Afficher l'état actuel
+        const stateValue = document.getElementById('current-state-value');
+        const stateTime = document.getElementById('current-state-time');
+        
+        const etat = currentTeamData.etat || 'roule';
+        stateValue.textContent = formatStateName(etat);
+        stateValue.className = `state-value ${etat}`;
+        
+        if (currentTeamData.heure_dernier_changement) {
+          const date = new Date(currentTeamData.heure_dernier_changement);
+          stateTime.textContent = `Depuis ${formatTime(date)}`;
+        } else {
+          stateTime.textContent = '';
+        }
+        
+        // Mettre à jour les boutons d'état (masquer l'état actuel)
+        updateStateButtons(etat);
+      } catch (error) {
+        console.error('❌ Erreur:', error);
+        showToast('Erreur chargement état', 'error');
+      }
+    }
+
+    // ===== CHANGEMENT D'ÉTAT =====
+    // Utiliser la délégation d'événements sur le document
+    document.addEventListener('click', (e) => {
+      console.log('👆 Clic détecté sur:', e.target, 'Classes:', e.target.className);
+      
+      // Clics sur les équipes
+      const teamCard = e.target.closest('.team-card');
+      if (teamCard) {
+        const teamId = teamCard.dataset.id;
+        const teamName = teamCard.dataset.nom;
+        console.log('🎯 Team card cliquée - ID:', teamId, 'Nom:', teamName);
+        selectTeam(teamId, teamName);
+        return;
+      }
+      
+      // Boutons d'état
+      const stateButton = e.target.closest('.state-button');
+      if (stateButton) {
+        const newState = stateButton.dataset.state;
+        console.log('🎯 Bouton état cliqué:', newState);
+        changeState(newState);
+        return;
+      }
+      
+      // Boutons d'assistance
+      const assistanceButton = e.target.closest('.assistance-button');
+      if (assistanceButton) {
+        const type = assistanceButton.dataset.assistance;
+        console.log('🆘 Bouton assistance cliqué:', type);
+        if (confirm(`Confirmer : ${assistanceButton.textContent.trim()} ?`)) {
+          requestAssistance(type);
+        }
+        return;
+      }
+    });
+
+    async function changeState(newState) {
+      if (!currentTeamId) return;
+
+      const data = {
+        equipe_id: currentTeamId,
+        etat: newState,
+        animateur: currentObservateur,
+        timestamp: new Date().toISOString()
+      };
+
+      if (currentPosition) {
+        data.position = {
+          lat: currentPosition.coords.latitude,
+          lng: currentPosition.coords.longitude,
+          accuracy: currentPosition.coords.accuracy
+        };
+      }
+
+      try {
+        const response = await fetch('/api/equipes/etat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Erreur serveur:', response.status, errorText);
+          throw new Error('Erreur changement état');
+        }
+
+        showToast(`État changé : ${formatStateName(newState)}`, 'success');
+        
+        // Recharger toutes les équipes pour avoir les données à jour
+        await loadTeams();
+        await loadTeamState();
+        
+        // Replier l'accordéon état et ouvrir l'accordéon sélection équipe
+        const stateCard = document.getElementById('state-card');
+        const stateToggle = document.getElementById('state-toggle');
+        if (stateCard && stateToggle) {
+          stateCard.classList.add('collapsed');
+          stateToggle.textContent = 'Modifier';
+        }
+        
+        const teamCard = document.getElementById('team-card');
+        const teamToggle = document.getElementById('team-toggle');
+        if (teamCard && teamToggle) {
+          teamCard.classList.remove('collapsed');
+          teamToggle.textContent = 'Replier';
+        }
+      } catch (error) {
+        console.error('Erreur:', error);
+        showToast('Erreur changement état', 'error');
+      }
+    }
+
+    // ===== ASSISTANCE =====
+    async function requestAssistance(type) {
+      if (!currentTeamId) return;
+
+      const data = {
+        type: type,
+        organisateur: currentObservateur,
+        equipe_nom: currentTeamId  // Envoyer le nom de l'équipe
+      };
+
+      if (currentPosition) {
+        data.latitude = currentPosition.coords.latitude;
+        data.longitude = currentPosition.coords.longitude;
+      }
+
+      try {
+        const response = await fetch('/api/assistance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        if (!response.ok) throw new Error('Erreur demande assistance');
+
+        showToast(`Assistance ${type} demandée`, 'success');
+      } catch (error) {
+        console.error('Erreur:', error);
+        showToast('Erreur demande assistance', 'error');
+      }
+    }
+
+    // ===== MISE À JOUR DES BOUTONS D'ÉTAT =====
+    function updateStateButtons(currentState) {
+      const buttons = document.querySelectorAll('.state-button');
+      buttons.forEach(button => {
+        const buttonState = button.dataset.state;
+        if (currentState === 'non-partie') {
+          // Seul le bouton "roule" est visible
+          if (buttonState === 'roule') {
+            button.style.display = '';
+          } else {
+            button.style.display = 'none';
+          }
+        } else {
+          // Comportement normal: masquer seulement le bouton de l'état actuel
+          if (buttonState === currentState) {
+            button.style.display = 'none';
+          } else {
+            button.style.display = '';
+          }
+        }
+      });
+    }
+
+    // ===== UTILITAIRES =====
+    function formatStateName(state) {
+      const names = {
+        'non-partie': '🚦 Non partie',
+        'roule': '🚴 Roule',
+        'pause': '⏸️ Pause',
+        'repas': '🍽️ Repas',
+        'temps-spi': '⏱️ Temps Spi',
+        'arrivee': '🏁 Arrivée'
+      };
+      return names[state] || state;
+    }
+
+    function formatTime(date) {
+      return date.toLocaleTimeString('fr-FR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    }
+
+    let toastTimeout = null;
+    function showToast(msg, type = 'info', duration = 4000) {
+      // Supprimer le toast existant
+      const existingToast = document.querySelector('.toast');
+      if (existingToast) {
+        existingToast.remove();
+      }
+      
+      if (toastTimeout) {
+        clearTimeout(toastTimeout);
+        toastTimeout = null;
+      }
+      
+      if (!msg) return;
+      
+      // Créer le toast
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      
+      // Appliquer le type
+      if (type === 'success') {
+        toast.classList.add('success');
+      } else if (type === 'error') {
+        toast.classList.add('error');
+      }
+      
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      
+      // Auto-remove
+      if (duration > 0) {
+        toastTimeout = setTimeout(() => {
+          toast.style.animation = 'slideDown 0.3s ease-out reverse';
+          setTimeout(() => toast.remove(), 300);
+          toastTimeout = null;
+        }, duration);
+      }
+    }
+
+    // ===== BOUTONS FLOTTANTS =====
+    const btnMenuPrincipal = document.getElementById('btn-menu-principal');
+    if (btnMenuPrincipal) {
+      btnMenuPrincipal.addEventListener('click', () => {
+        window.location.assign('/static/index.html');
+      });
+      // Support tactile pour PWA
+      btnMenuPrincipal.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.assign('/static/index.html');
+      });
+    }
+
+    // Support tactile pour le tooltip
+    document.querySelectorAll('.floating-button').forEach(btn => {
+      btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        btn.classList.add('show-tooltip');
+        setTimeout(() => btn.classList.remove('show-tooltip'), 2000);
+      });
+    });
+
+    // ===== SERVICE WORKER =====
+    // Désactiver le SW si ?nosw present dans l'URL (pour debug)
+    const urlParams = new URLSearchParams(window.location.search);
+    const disableSW = urlParams.has('nosw');
+    
+    if (disableSW) {
+      console.log('⚠️ Service Worker désactivé pour debug');
+    } else if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          console.log('✅ Service Worker enregistré');
+          
+          // Vérifier les mises à jour toutes les 60 secondes
+          setInterval(() => {
+            registration.update();
+          }, 60000);
+          
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            console.log('🔄 Nouvelle version détectée...');
+            
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('✨ Mise à jour prête, rechargement...');
+                // Demander au nouveau SW de prendre le contrôle
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          });
+        })
+        .catch(err => console.error('❌ Service Worker erreur:', err));
+      
+      // Recharger la page quand un nouveau SW prend le contrôle
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          console.log('🔄 Rechargement pour nouvelle version...');
+          window.location.reload();
+        }
+      });
+    }
+
+    // ===== INITIALISATION =====
+    document.getElementById('observateur')?.focus();
+  </script>
+</body>
+</html>

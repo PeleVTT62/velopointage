@@ -1,0 +1,49 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: velopointage-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: velopointage-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-62000}:62000"
+    environment:
+      - APP_PORT=62000
+      - UVICORN_RELOAD=0
+      - ROUTE_NAME=${ROUTE_NAME:-Route 00}
+      - ROUTE_SLUG=${ROUTE_SLUG:-route00}
+      - REDIS_URL=redis://redis:6379
+      - REDIS_ENABLED=true
+      - REDIS_CHANNEL=passages:${ROUTE_SLUG:-route00}
+      - ADMIN_KEY=${ADMIN_KEY:-change-me-admin-key}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://route00.example.org}
+      - CONFIG_PASSWORD_HASH=${CONFIG_PASSWORD_HASH:-$$2y$$12$$Fg4/0WpGp9YVnTdy9x9nBOlodGvzDE600RrLFoSGQ.HAefgkTsFo2}
+      - SESSION_SECRET=${SESSION_SECRET:-change-me-session-secret}
+      - SESSION_DURATION_HOURS=${SESSION_DURATION_HOURS:-24}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:62000/', timeout=5)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ../../instances/default/data:/app/data
+      - ../../instances/default/gpx:/app/static/gpx
+
+volumes:
+  redis_data:

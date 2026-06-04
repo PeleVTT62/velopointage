@@ -1,0 +1,75 @@
+# Environnement
+.env
+.env.local
+.env.*.local
+.env.github-minimal
+.env.multi-route
+
+# Base de données
+data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Backups
+backups/
+*.bak
+*.backup
+
+# Conteneurs
+.docker-compose.override.yml
+
+# Données sensibles
+*.key
+*.pem
+certificates/
+secrets/
+
+# Fichiers temporaires
+tmp/
+temp/
+.cache/
+
+# Système
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes

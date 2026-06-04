@@ -1,0 +1,2293 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PéléVTT 62 - Carte</title>
+  <script defer src="/static/js/route-branding.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+  /* === VARIABLES ET MODE DARK === */
+  :root {
+    --bg-primary: #ecf0f1;
+    --bg-secondary: #f8f9fa;
+    --text-primary: #2c3e50;
+    --text-secondary: #7f8c8d;
+    --border-color: #e0e0e0;
+    --shadow: rgba(0, 0, 0, 0.1);
+    --accent-primary: #3498db;
+    --accent-secondary: #2ecc71;
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.3);
+    --gradient-primary: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
+    --gradient-secondary: linear-gradient(135deg, #9b59b6 0%, #e74c3c 100%);
+  }
+
+  body.dark {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --text-primary: #ecf0f1;
+    --text-secondary: #95a5a6;
+    --border-color: #2c3e50;
+    --shadow: rgba(0, 0, 0, 0.3);
+    --glass-bg: rgba(26, 26, 46, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.1);
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  } 
+
+  body {
+    background: linear-gradient(135deg, var(--bg-primary) 0%, #d5dbdb 100%);
+    color: var(--text-primary);
+    position: relative;
+  }
+
+  /* Animated background effect */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 20% 50%, rgba(52, 152, 219, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(46, 204, 113, 0.08) 0%, transparent 50%);
+    animation: bgShift 15s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes bgShift {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-50px, -50px); }
+  }
+
+  #map {
+    height: 100vh;
+    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    transition: filter 0.3s ease;
+    position: relative;
+    z-index: 0;
+  }
+
+  body.dark #map {
+    filter: brightness(0.85) hue-rotate(10deg);
+  }
+
+  #sidebar {
+    width: 480px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 16px;
+    box-shadow: -4px 0 24px rgba(52, 152, 219, 0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-left: 1px solid var(--glass-border);
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 768px) {
+    html, body {
+      flex-direction: column;
+    }
+
+    #sidebar {
+      width: 100%;
+      height: 250px;
+      order: 2;
+      border-left: none;
+      border-top: 1px solid var(--glass-border);
+      box-shadow: 0 -4px 24px var(--shadow);
+    }
+
+    #map {
+      height: calc(100vh - 250px);
+      border-bottom: 2px solid var(--border-color);
+    }
+    
+    .floating-buttons {
+      bottom: 20px;
+      right: 20px;
+      gap: 16px;
+    }
+    
+    .floating-buttons button {
+      width: 56px;
+      height: 56px;
+      font-size: 1.5rem;
+    }
+  }
+
+  .sidebar-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+    letter-spacing: -0.5px;
+  }
+
+  .dark-mode-toggle {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+  }
+
+  .dark-mode-toggle:hover {
+    transform: scale(1.1) rotate(15deg);
+    box-shadow: 0 4px 16px rgba(52, 152, 219, 0.3);
+    background: rgba(255, 255, 255, 0.95);
+  }
+
+  /* === CONNECTION STATUS === */
+  .connection-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.9), rgba(192, 57, 43, 0.9));
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 12px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+    transition: all 0.3s ease;
+  }
+
+  .connection-status.connected {
+    background: var(--gradient-primary);
+    box-shadow: 0 4px 12px rgba(46, 204, 113, 0.4);
+  }
+
+  .connection-status .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: white;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+  }
+
+  #passage-list {
+    flex: 1;
+    overflow-y: auto;
+    font-size: 14px;
+    border-radius: 8px;
+    padding: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+  }
+
+  /* Custom scrollbar */
+  #passage-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  #passage-list::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 3px;
+  }
+
+  #passage-list::-webkit-scrollbar-thumb {
+    background: var(--accent-primary);
+    border-radius: 3px;
+  }
+
+  #passage-list::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-secondary);
+  }
+
+  /* === ANIMATIONS POSITION UTILISATEUR (style Google Maps) === */
+  @keyframes softPulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.25;
+    }
+    50% {
+      transform: scale(1.08);
+      opacity: 0.15;
+    }
+  }
+
+  @keyframes rippleWave {
+    0% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 0.6;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(2.5);
+      opacity: 0;
+    }
+  }
+
+  .position-ripple-marker {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .ripple-wave {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #4285F4;
+    border-radius: 50%;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  /* Empêcher la rotation des markers lors de la rotation de la carte */
+  .leaflet-marker-icon:not(.user-direction-marker) img,
+  .leaflet-marker-icon:not(.user-direction-marker) > * {
+    transform-origin: center center;
+    transition: transform 0.3s ease-out;
+  }
+  
+  /* Styles pour le marqueur de direction (triangle indicateur de boussole) */
+  .user-direction-marker {
+    pointer-events: none;
+  }
+
+  .direction-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: center center;
+    transition: transform 0.3s ease-out;
+  }
+
+  .user-direction-arrow {
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 16px solid #4285F4;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -100%) translateY(-18px);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  }
+
+  #passage-list .passage-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+  }
+
+  #passage-list .passage-item:hover {
+    background: var(--gradient-primary);
+    color: white;
+    transform: translateX(6px) scale(1.02);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+  }
+
+  #passage-list .passage-item:last-child {
+    border-bottom: none;
+  }
+
+#summary-table {
+  background: var(--glass-bg);
+  border-radius: 12px;
+  padding: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+#passages-container {
+  background: var(--glass-bg);
+  border-radius: 12px;
+  padding: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 12px var(--shadow);
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+#passages-container h3 {
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--accent-primary);
+}
+
+#summary-table table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+#summary-table th, #summary-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#summary-table th:nth-child(1), #summary-table td:nth-child(1) { 
+  width: 31%; 
+  white-space: normal;
+  word-wrap: break-word;
+}
+#summary-table th:nth-child(2), #summary-table td:nth-child(2) { 
+  width: 20%; 
+  white-space: normal;
+  word-wrap: break-word;
+}
+#summary-table th:nth-child(3), #summary-table td:nth-child(3) { 
+  width: 12%; 
+  white-space: nowrap;
+}
+#summary-table th:nth-child(4), #summary-table td:nth-child(4) { 
+  width: 15%; 
+  white-space: nowrap;
+}
+#summary-table th:nth-child(5), #summary-table td:nth-child(5) { 
+  width: 22%; 
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+#summary-table th {
+  background: var(--gradient-primary);
+  color: white !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.8rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+#summary-table tbody tr:hover {
+  background: linear-gradient(90deg, rgba(52, 152, 219, 0.1), rgba(46, 204, 113, 0.1));
+  transform: scale(1.01);
+  transition: all 0.3s ease;
+}
+
+#summary-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+  #sidebar h2, #sidebar h3 {
+    margin: 16px 0 10px;
+    color: var(--accent-primary);
+    border-bottom: 2px solid var(--accent-primary);
+    padding-bottom: 6px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Disposition mobile */
+  @media (max-width: 768px) {
+    html, body {
+      flex-direction: column;
+      height: 100vh;
+    }
+    #map {
+      height: 55vh;
+      width: 100%;
+    }
+    #sidebar {
+      width: 100%;
+      height: 45vh;
+      padding: 8px;
+      box-shadow: 0 -4px 16px var(--shadow);
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    #sidebar h3 {
+      font-size: 0.9rem;
+      margin: 8px 0 6px;
+      padding-bottom: 4px;
+    }
+    
+    #summary-table {
+      flex: 0 0 auto;
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 35%;
+      margin-bottom: 8px;
+    }
+    
+    #summary-table table {
+      font-size: 0.75rem;
+    }
+    
+    #summary-table th, #summary-table td {
+      padding: 4px 3px;
+      font-size: 0.7rem;
+    }
+    
+    #passage-list {
+      flex: 1 1 auto;
+      font-size: 0.75rem;
+      overflow-y: auto;
+      overflow-x: hidden;
+      border-top: 1px solid var(--border-color);
+      padding: 4px;
+      margin: 0;
+    }
+
+    .passage-item {
+      padding: 6px 4px;
+      font-size: 0.7rem;
+      line-height: 1.3;
+      margin-bottom: 2px;
+    }
+  }
+
+  /* === BOUTONS FLOTTANTS (tous écrans) === */
+  /* Boutons flottants */
+  .floating-button {
+    position: fixed;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 1000;
+    padding: 0;
+    margin: 0;
+  }
+
+  .floating-button::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  #btn-menu-principal {
+    bottom: 20px;
+    right: 20px;
+  }
+
+  #btn-recenter {
+    bottom: 90px;
+    right: 20px;
+  }
+
+  #btn-my-location {
+    bottom: 160px;
+    right: 20px;
+  }
+
+  /* Tooltips pour boutons flottants */
+  .floating-button::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: 70px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: white;
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .floating-button:hover::after,
+  .floating-button.show-tooltip::after {
+    opacity: 1;
+  }
+
+  .floating-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .floating-button:active {
+    transform: translateY(-1px);
+  }
+
+  /* Rotation de la carte */
+  #map.rotating {
+    position: relative;
+  }
+  
+  #map.rotating .leaflet-map-pane {
+    transition: transform 0.5s ease-out;
+    will-change: transform;
+  }
+  
+  /* Assurer que la carte utilise tout l'espace disponible */
+  .leaflet-container {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Affichage des infos GPS */
+  .gps-info {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px var(--shadow);
+    border: 1px solid var(--glass-border);
+    z-index: 999;
+    display: none;
+  }
+  
+  .gps-info.visible {
+    display: block;
+  }
+  
+  .gps-info-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 2px 0;
+    white-space: nowrap;
+  }
+  
+  .gps-accuracy-good { color: #2ecc71; }
+  .gps-accuracy-medium { color: #f39c12; }
+  .gps-accuracy-bad { color: #e74c3c; }
+
+  /* Sur mobile, boutons de carte sur la carte, menu en bas */
+  @media (max-width: 768px) {
+    .gps-info {
+      top: 10px;
+      right: 10px;
+      font-size: 0.75rem;
+      padding: 6px 10px;
+    }
+    
+    .gps-info-item {
+      gap: 4px;
+      margin: 1px 0;
+    }
+    
+    .floating-button {
+      width: 56px;
+      height: 56px;
+      font-size: 1.5rem;
+    }
+  }
+
+</style>
+</head>
+<body>
+
+  <div id="map"></div>
+  
+  <div class="gps-info" id="gps-info">
+    <div class="gps-info-item">
+      <span>📍</span>
+      <span id="gps-accuracy">-</span>
+    </div>
+    <div class="gps-info-item">
+      <span>🚀</span>
+      <span id="gps-speed">-</span>
+    </div>
+  </div>
+
+  <div id="sidebar">
+  <div id="summary-table">Chargement...</div>
+
+  <div id="passages-container">
+    <h3>⏰ Derniers passages</h3>
+    <div id="passage-list">Chargement...</div>
+  </div>
+</div>
+
+<!-- Boutons flottants -->
+<button id="btn-my-location" class="floating-button" data-tooltip="Ma position">📍</button>
+<button id="btn-recenter" class="floating-button" data-tooltip="Centrer carte">🗺️</button>
+<button id="btn-menu-principal" class="floating-button" data-tooltip="Retour menu">↩️</button>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
+
+<script>
+  // Gérer l'affichage temporaire des tooltips sur mobile
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.floating-button').forEach(btn => {
+      btn.addEventListener('touchstart', () => {
+        btn.classList.add('show-tooltip');
+        setTimeout(() => btn.classList.remove('show-tooltip'), 2000);
+      }, { passive: true });
+    });
+    
+    // Bouton menu principal
+    const btnMenuPrincipal = document.getElementById('btn-menu-principal');
+    if (btnMenuPrincipal) {
+      btnMenuPrincipal.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.assign('/static/index.html');
+      });
+    }
+  });
+
+  const apiBase = "/api";
+  
+  // Fonction utilitaire pour échapper HTML (sécurité XSS)
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  // Convertir coordonnées string en number ou null
+  function parseCoord(coord) {
+    if (coord === null || coord === undefined || coord === '') return null;
+    const num = parseFloat(coord);
+    return isNaN(num) ? null : num;
+  }
+  
+  // Variables globales consolidées
+  const state = {
+    passageMarkers: [],
+    passagesGlobal: [],
+    cityCache: {},
+    equipesCouleurs: {},
+    updateTimer: null,
+    markerCache: new Map(), // Cache des marqueurs par clé
+    lastWebSocketUpdate: 0,
+    pendingGeocodingRequests: 0,
+    maxConcurrentGeocoding: 3 // Max 3 requêtes Nominatim simultanées
+  };
+  
+  // Charger le cache des villes depuis localStorage
+  function loadCityCache() {
+    try {
+      const cached = localStorage.getItem('cityCache');
+      if (cached) {
+        const data = JSON.parse(cached);
+        const now = Date.now();
+        // Nettoyer les entrées expirées (> 7 jours)
+        Object.keys(data).forEach(key => {
+          if (data[key].timestamp && (now - data[key].timestamp) < 7 * 24 * 60 * 60 * 1000) {
+            state.cityCache[key] = data[key].city;
+          }
+        });
+        console.log(`📦 ${Object.keys(state.cityCache).length} villes chargées du cache`);
+      }
+    } catch (e) {
+      console.warn('Erreur chargement cache villes:', e);
+    }
+  }
+  
+  // Sauvegarder le cache des villes dans localStorage
+  function saveCityCache() {
+    try {
+      const data = {};
+      const now = Date.now();
+      Object.keys(state.cityCache).forEach(key => {
+        data[key] = { city: state.cityCache[key], timestamp: now };
+      });
+      localStorage.setItem('cityCache', JSON.stringify(data));
+    } catch (e) {
+      console.warn('Erreur sauvegarde cache villes:', e);
+    }
+  }
+  
+  // Charger le cache au démarrage
+  loadCityCache();
+  
+  // Initialisation de la carte avec gestion d'erreur
+  let map;
+  try {
+    map = L.map("map").setView([50.636, 3.063], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: false
+    }).addTo(map);
+    
+    // Forcer le recalcul de la taille de la carte après chargement
+    setTimeout(() => map.invalidateSize(), 100);
+    
+    initUserLocation(map);
+  } catch (error) {
+    console.error('❌ Erreur initialisation carte:', error);
+    document.getElementById('map').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#e74c3c;font-size:1.2rem;">❌ Erreur de chargement de la carte</div>';
+  }
+
+let gpxLayer = null; // layer global
+
+async function loadActiveGPX() {
+  try {
+    const res = await fetch(`${apiBase}/gpx_files`);
+    if (!res.ok) throw new Error("Impossible de récupérer le GPX actif");
+    const data = await res.json();
+    if (!data.active) return;
+
+    const gpxPath = `/static/gpx/${encodeURIComponent(data.active)}`;
+
+    if (gpxLayer) map.removeLayer(gpxLayer);
+
+    gpxLayer = new L.GPX(gpxPath, {
+      async: true,
+      show_waypoints: false,
+      marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null },
+      gpx_options: { parseElements: ["track"] },
+      polyline_options: { 
+        color: 'blue', 
+        opacity: 0.75, 
+        weight: 4, 
+        lineCap: 'round', 
+        dashArray: '5,10' 
+      }
+    })
+    .on('loaded', e => {
+      const bounds = e.target.getBounds();
+      map.fitBounds(bounds);
+      
+      // Stocker les bounds pour recentrage ultérieur
+      window.gpxBounds = bounds;
+
+      // Récupérer les points du GPX
+      const points = e.target.getLayers()[0].getLatLngs();
+      if (points.length > 0) {
+        const start = points[0]; // premier point
+        const end = points[points.length - 1]; // dernier point
+        startPoint = [start.lat, start.lng];
+        endPoint   = [end.lat, end.lng];
+
+        // Icône départ 🚩
+        L.marker(start, {
+          icon: L.divIcon({
+            className: 'start-icon',
+            html: '🚩',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          })
+        }).addTo(map);
+
+        // Icône arrivée 🏁
+        L.marker(end, {
+          icon: L.divIcon({
+            className: 'end-icon',
+            html: '🏁',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          })
+        }).addTo(map);
+      }
+    })
+    .addTo(map);
+
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Charger le GPX actif au démarrage
+loadActiveGPX();
+
+// Fonction de throttling
+function throttle(func, delay) {
+  let lastCall = 0;
+  return function(...args) {
+    const now = Date.now();
+    if (now - lastCall >= delay) {
+      lastCall = now;
+      return func.apply(this, args);
+    }
+  };
+}
+
+// Fonction pour réinitialiser la rotation de la carte
+function resetMapRotation() {
+  const mapPane = map.getPane('mapPane');
+  if (mapPane) {
+    mapPane.style.transform = 'rotate(0deg)';
+    mapPane.style.transformOrigin = '';
+    mapPane.style.willChange = '';
+    mapPane._centerCalculated = false;
+  }
+  document.getElementById('map').classList.remove('rotating');
+  
+  // Réinitialiser la rotation des marqueurs
+  const markers = document.querySelectorAll('.leaflet-marker-icon:not(.user-direction-marker)');
+  markers.forEach(marker => {
+    const img = marker.querySelector('img');
+    if (img) {
+      img.style.transform = '';
+    }
+    
+    // Réinitialiser les divIcon (cercles, etc.)
+    if (marker.children.length > 0) {
+      Array.from(marker.children).forEach(child => {
+        child.style.transform = '';
+      });
+    }
+  });
+}
+
+// Vibration tactile (si supportée)
+function vibrate(pattern = 50) {
+  if ('vibrate' in navigator) {
+    navigator.vibrate(pattern);
+  }
+}
+
+function initUserLocation(map) {
+  let userMarker = null;
+  let userCircle = null;
+  let directionArrow = null;
+  let lastPosition = null;
+  window.followMode = false; // Mode de suivi activé/désactivé (global)
+  let currentHeading = 0; // Orientation actuelle
+  let followMode = window.followMode; // Référence locale
+  let geoWatchId = null; // ID du watchPosition
+  let compassEnabled = false;
+
+  function normalizeAngle(angle) {
+    return ((angle % 360) + 360) % 360;
+  }
+
+  // Retourne la plus petite variation signée entre deux angles normalisés.
+  function shortestAngularDiff(fromAngle, toAngle) {
+    return ((toAngle - fromAngle + 540) % 360) - 180;
+  }
+
+  // Met à jour currentHeading en continu pour éviter les sauts 359° -> 0°.
+  function updateHeadingContinuous(nextAngle) {
+    if (nextAngle === null || nextAngle === undefined || Number.isNaN(nextAngle)) return 0;
+
+    const target = normalizeAngle(nextAngle);
+    const currentNormalized = normalizeAngle(currentHeading);
+    const delta = shortestAngularDiff(currentNormalized, target);
+
+    currentHeading += delta;
+    return Math.abs(delta);
+  }
+
+  if (!("geolocation" in navigator)) {
+    console.warn("La géolocalisation n'est pas supportée par ce navigateur.");
+    return;
+  }
+
+  // Fonction pour calculer la distance entre deux points (en mètres)
+  function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Rayon de la Terre en mètres
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  }
+
+  // Fonction pour mettre à jour la direction du triangle
+  function updateArrowDirection() {
+    if (!directionArrow) return;
+    
+    // Le triangle a toujours la rotation currentHeading
+    // Quand followMode est actif, la carte tourne de -currentHeading
+    // donc le triangle (qui tourne avec la carte de -currentHeading) 
+    // + sa rotation CSS de +currentHeading = pointe vers le haut
+    const newIcon = L.divIcon({
+      className: 'user-direction-marker',
+      html: `<div class="direction-container" style="transform: rotate(${currentHeading}deg);"><div class="user-direction-arrow"></div></div>`,
+      iconSize: [60, 60],
+      iconAnchor: [30, 30]
+    });
+    directionArrow.setIcon(newIcon);
+  }
+
+  // Suivi GPS avec heading (direction) et filtrage strict des mouvements
+  navigator.geolocation.watchPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const accuracy = pos.coords.accuracy;
+      const heading = pos.coords.heading; // Direction en degrés (0-360)
+      const speed = pos.coords.speed; // Vitesse en m/s
+      
+      // Afficher les infos GPS
+      const gpsInfo = document.getElementById('gps-info');
+      if (window.followMode && gpsInfo) {
+        gpsInfo.classList.add('visible');
+        
+        // Précision avec code couleur
+        const accuracyEl = document.getElementById('gps-accuracy');
+        if (accuracyEl) {
+          let accuracyClass = 'gps-accuracy-good';
+          if (accuracy > 15) accuracyClass = 'gps-accuracy-medium';
+          if (accuracy > 25) accuracyClass = 'gps-accuracy-bad';
+          accuracyEl.className = accuracyClass;
+          accuracyEl.textContent = `±${accuracy.toFixed(0)}m`;
+        }
+        
+        // Vitesse
+        const speedEl = document.getElementById('gps-speed');
+        if (speedEl) {
+          if (speed !== null && speed >= 0) {
+            const kmh = (speed * 3.6).toFixed(1);
+            speedEl.textContent = `${kmh} km/h`;
+          } else {
+            speedEl.textContent = '- km/h';
+          }
+        }
+      } else if (gpsInfo) {
+        gpsInfo.classList.remove('visible');
+      }
+
+      // Ignorer les positions avec une précision médiocre (> 25m)
+      if (accuracy > 25) {
+        console.log(`Position ignorée - précision: ${accuracy.toFixed(1)}m`);
+        return;
+      }
+
+      // Filtrer les petits mouvements (bruit GPS) - seuil adaptatif
+      if (lastPosition) {
+        const distance = getDistance(lastPosition.lat, lastPosition.lon, lat, lon);
+        
+        // Seuil adaptatif plus élevé : plus la précision est bonne, plus on accepte les petits mouvements
+        // Précision < 10m : seuil 12m, Précision 10-20m : seuil 18m, Précision > 20m : seuil 25m
+        const threshold = accuracy < 10 ? 12 : accuracy < 20 ? 18 : 25;
+        
+        // Si le mouvement est inférieur au seuil, on ignore la mise à jour
+        if (distance < threshold) {
+          // Mettre à jour seulement le rayon de précision sans bouger le point
+          if (userCircle) {
+            userCircle.setRadius(accuracy);
+          }
+          return;
+        }
+      }
+
+      // Enregistrer la nouvelle position
+      lastPosition = { lat, lon };
+
+      if (userMarker) {
+        userMarker.setLatLng([lat, lon]);
+        userCircle.setLatLng([lat, lon]).setRadius(accuracy);
+        
+        // Mode suivi: centrer la carte continuellement
+        if (window.followMode) {
+          // Utiliser panTo pour un recentrage fluide et continu
+          const currentZoom = map.getZoom() < 16 ? 17 : map.getZoom();
+          if (map.getZoom() !== currentZoom) {
+            map.setZoom(currentZoom, { animate: false });
+          }
+          // Recentrer en permanence sur la position
+          map.panTo([lat, lon], { animate: false, noMoveStart: true });
+        }
+        
+        // Mettre à jour la position du triangle
+        if (directionArrow) {
+          directionArrow.setLatLng([lat, lon]);
+          
+          // Mettre à jour avec heading GPS si disponible
+          if (heading !== null && heading !== undefined) {
+            updateHeadingContinuous(heading);
+          }
+          // Mettre à jour l'orientation du triangle
+          updateArrowDirection();
+          
+          // Afficher/masquer selon le mode suivi
+          if (window.followMode) {
+            if (!map.hasLayer(directionArrow)) {
+              directionArrow.addTo(map);
+            }
+          } else {
+            if (map.hasLayer(directionArrow)) {
+              map.removeLayer(directionArrow);
+            }
+          }
+        } else if (!directionArrow) {
+          // Créer le triangle s'il n'existe pas
+          const dirIcon = L.divIcon({
+            className: 'user-direction-marker',
+            html: `<div class="direction-container" style="transform: rotate(${heading || 0}deg);"><div class="user-direction-arrow"></div></div>`,
+            iconSize: [60, 60],
+            iconAnchor: [30, 30]
+          });
+          directionArrow = L.marker([lat, lon], { icon: dirIcon, zIndexOffset: 1001, interactive: false }).addTo(map);
+        }
+      } else {
+        // Point central bleu (stable, sans animation)
+        userMarker = L.circleMarker([lat, lon], {
+          radius: 10,
+          color: "#ffffff",
+          fillColor: "#4285F4",
+          fillOpacity: 1,
+          weight: 3,
+          className: 'user-position-marker'
+        }).addTo(map);
+
+        // Halo de précision avec pulsation douce (style Google Maps)
+        userCircle = L.circle([lat, lon], {
+          radius: accuracy,
+          color: "#4285F4",
+          fillColor: "#4285F4",
+          fillOpacity: 0.25,
+          weight: 0,
+          className: 'user-position-halo'
+        }).addTo(map);
+
+        // Animation douce du halo
+        const haloElement = userCircle.getElement();
+        if (haloElement) {
+          haloElement.style.animation = 'softPulse 2s ease-in-out infinite';
+          haloElement.style.transformOrigin = 'center';
+        }
+
+        // Créer une onde qui se répète périodiquement (utilise divIcon pour CSS pur)
+        setInterval(() => {
+          const currentPos = userMarker.getLatLng();
+          const rippleIcon = L.divIcon({
+            className: 'position-ripple-marker',
+            html: '<div class="ripple-wave"></div>',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+          });
+          
+          const ripple = L.marker([currentPos.lat, currentPos.lng], {
+            icon: rippleIcon,
+            interactive: false
+          }).addTo(map);
+
+          const rippleElement = ripple.getElement();
+          if (rippleElement) {
+            const wave = rippleElement.querySelector('.ripple-wave');
+            if (wave) {
+              wave.style.animation = 'rippleWave 2s ease-out forwards';
+            }
+          }
+
+          // Supprimer l'onde après l'animation
+          setTimeout(() => {
+            map.removeLayer(ripple);
+          }, 2000);
+        }, 2000);
+
+        // Créer le triangle de direction (initialement pointant vers le nord)
+        const dirIcon = L.divIcon({
+          className: 'user-direction-marker',
+          html: `<div class="direction-container" style="transform: rotate(${heading || 0}deg);"><div class="user-direction-arrow"></div></div>`,
+          iconSize: [60, 60],
+          iconAnchor: [30, 30]
+        });
+        directionArrow = L.marker([lat, lon], { icon: dirIcon, zIndexOffset: 1001, interactive: false });
+        // Ne pas ajouter à la carte - sera ajouté seulement en mode suivi
+        // directionArrow.addTo(map) sera fait dans la condition window.followMode
+
+        map.setView([lat, lon], 15);
+      }
+    },
+    err => {
+      console.warn("Erreur géolocalisation:", err.message);
+      
+      // Afficher un message à l'utilisateur
+      let message = "Erreur GPS";
+      switch(err.code) {
+        case err.PERMISSION_DENIED:
+          message = "❌ Permission GPS refusée. Activez la localisation dans les paramètres.";
+          break;
+        case err.POSITION_UNAVAILABLE:
+          message = "❌ Position GPS indisponible. Vérifiez votre connexion.";
+          break;
+        case err.TIMEOUT:
+          message = "❌ Délai GPS dépassé. Réessayez.";
+          break;
+      }
+      
+      const gpsInfo = document.getElementById('gps-info');
+      if (gpsInfo && window.followMode) {
+        gpsInfo.innerHTML = `<div style="color:#e74c3c;">${message}</div>`;
+        gpsInfo.classList.add('visible');
+      }
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: window.followMode ? 1000 : 5000, // Fréquence adaptative
+      timeout: 10000
+    }
+  );
+
+  // Utiliser l'API DeviceOrientation pour la boussole (fonctionne même à l'arrêt)
+  // Throttler la boussole pour économiser les ressources (max 10 fois/sec)
+  const handleOrientation = throttle(function(event) {
+    if (!directionArrow || !window.followMode) return; // Ne traiter que si mode suivi actif
+
+    // event.webkitCompassHeading (iOS) ou event.alpha (Android)
+    // 0 = nord, 90 = est, 180 = sud, 270 = ouest
+    let compass = event.webkitCompassHeading;
+    if (compass === null || compass === undefined) {
+      compass = event.alpha;
+    }
+    
+    if (compass !== null && compass !== undefined) {
+      // Filtrer les petits changements (< 2°) avec gestion correcte du passage 0/360.
+      const delta = updateHeadingContinuous(compass);
+      if (delta < 2 && delta !== 0) return;
+      
+      // Rotation de la carte si mode suivi actif
+      if (window.followMode) {
+        const mapPane = map.getPane('mapPane');
+        if (mapPane) {
+          // Obtenir le centre du viewport (calculer une seule fois)
+          if (!mapPane._centerCalculated) {
+            const mapContainer = map.getContainer();
+            const rect = mapContainer.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            mapPane.style.transformOrigin = `${centerX}px ${centerY}px`;
+            mapPane._centerCalculated = true;
+          }
+          
+          // Appliquer la rotation au mapPane
+          mapPane.style.transform = `rotate(${-currentHeading}deg)`;
+          
+          // Contre-rotation pour les markers (sauf le triangle de direction)
+          // Appliquer la rotation sur les enfants pour préserver le positionnement Leaflet
+          const markers = document.querySelectorAll('.leaflet-marker-icon:not(.user-direction-marker)');
+          markers.forEach(marker => {
+            // Trouver l'élément img à l'intérieur
+            const img = marker.querySelector('img');
+            if (img) {
+              img.style.transform = `rotate(${currentHeading}deg)`;
+            }
+            
+            // Pour les divIcon (cercles, etc.) - appliquer sur les enfants directs
+            if (!img && marker.children.length > 0) {
+              Array.from(marker.children).forEach(child => {
+                child.style.transform = `rotate(${currentHeading}deg)`;
+              });
+            }
+          });
+        }
+      }
+      
+      // Mettre à jour la direction du triangle
+      updateArrowDirection();
+    }
+  }, 100); // Max 10 mises à jour par seconde
+
+  function enableCompass() {
+    if (compassEnabled) return;
+    
+    if (window.DeviceOrientationEvent) {
+      // Demander la permission sur iOS 13+
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+          .then(permissionState => {
+            if (permissionState === 'granted') {
+              window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+              window.addEventListener('deviceorientation', handleOrientation, true);
+              compassEnabled = true;
+              console.log('✅ Boussole activée');
+            } else {
+              console.warn('⚠️ Permission boussole refusée');
+              alert('La boussole nécessite votre autorisation pour orienter la carte.');
+            }
+          })
+          .catch(err => {
+            console.error('❌ Erreur permission boussole:', err);
+            // Ne pas afficher d'alert automatiquement, seulement logger
+          });
+      } else {
+        // Pour Android et anciennes versions iOS
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
+        compassEnabled = true;
+        console.log('✅ Boussole activée (auto)');
+      }
+    } else {
+      console.warn('⚠️ Boussole non disponible sur cet appareil');
+    }
+  }
+  
+  function disableCompass() {
+    if (!compassEnabled) return;
+    window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+    window.removeEventListener('deviceorientation', handleOrientation, true);
+    compassEnabled = false;
+    console.log('🔴 Boussole désactivée');
+  }
+  
+  // Activer la boussole au premier clic sur "Ma position"
+  setTimeout(() => {
+    enableCompass();
+  }, 1000);
+
+  // Désactiver le mode suivi si l'utilisateur interagit manuellement
+  map.on('dragstart', () => {
+    if (window.followMode) {
+      window.followMode = false;
+      const btn = document.getElementById("btn-my-location");
+      if (btn) btn.classList.remove('active');
+      vibrate(30);
+      resetMapRotation();
+      
+      // Masquer les infos GPS
+      const gpsInfo = document.getElementById('gps-info');
+      if (gpsInfo) gpsInfo.classList.remove('visible');
+      
+      // Désactiver la boussole
+      disableCompass();
+    }
+  });
+
+  // Bouton "Ma position" - Toggle du mode suivi
+  const btn = document.getElementById("btn-my-location");
+  if (btn) {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      
+      // Activer la boussole au premier clic
+      enableCompass();
+      
+      if (userMarker) {
+        // Toggle du mode suivi
+        window.followMode = !window.followMode;
+        
+        if (window.followMode) {
+          // Activer le mode suivi
+          btn.classList.add('active');
+          document.getElementById('map').classList.add('rotating');
+          vibrate([50, 30, 50]); // Double vibration
+          
+          // Afficher le triangle
+          if (directionArrow && !map.hasLayer(directionArrow)) {
+            directionArrow.addTo(map);
+          }
+          
+          // Afficher les infos GPS
+          const gpsInfo = document.getElementById('gps-info');
+          if (gpsInfo) gpsInfo.classList.add('visible');
+          
+          // Zoom adapté pour mobile (18 pour meilleure visibilité)
+          map.setView(userMarker.getLatLng(), 18, { animate: false });
+          // Forcer le recalcul de la taille
+          setTimeout(() => map.invalidateSize({ pan: false }), 100);
+          
+          // Appliquer immédiatement la rotation
+          const mapPane = map.getPane('mapPane');
+          if (mapPane) {
+            const mapContainer = map.getContainer();
+            const rect = mapContainer.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            mapPane.style.transformOrigin = `${centerX}px ${centerY}px`;
+            mapPane.style.transform = `rotate(${-currentHeading}deg)`;
+            mapPane.style.willChange = 'transform';
+            mapPane._centerCalculated = true;
+          }
+          
+          // Activer la boussole
+          enableCompass();
+        } else {
+          // Désactiver le mode suivi
+          btn.classList.remove('active');
+          vibrate(50); // Simple vibration
+          resetMapRotation();
+          
+          // Masquer le triangle
+          if (directionArrow && map.hasLayer(directionArrow)) {
+            map.removeLayer(directionArrow);
+          }
+          
+          // Masquer les infos GPS
+          const gpsInfo = document.getElementById('gps-info');
+          if (gpsInfo) gpsInfo.classList.remove('visible');
+          
+          // Désactiver la boussole pour économiser la batterie
+          disableCompass();
+        }
+      } else {
+        alert("Position GPS non détectée pour le moment.");
+      }
+    });
+  }
+}
+
+// Bouton recenter
+document.getElementById("btn-recenter").addEventListener("click", function(e) {
+  e.preventDefault();
+  
+  // Désactiver le mode suivi si actif
+  if (window.followMode) {
+    window.followMode = false;
+    const btn = document.getElementById("btn-my-location");
+    if (btn) btn.classList.remove('active');
+    vibrate(30);
+    resetMapRotation();
+    
+    // Masquer les infos GPS
+    const gpsInfo = document.getElementById('gps-info');
+    if (gpsInfo) gpsInfo.classList.remove('visible');
+  }
+  
+  if (gpxLayer) {
+    map.fitBounds(gpxLayer.getBounds());
+  } else if (window.gpxBounds) {
+    map.fitBounds(window.gpxBounds);
+  }
+});
+
+// Centrer automatiquement la carte au chargement
+setTimeout(() => {
+  if (window.gpxBounds) {
+    map.fitBounds(window.gpxBounds);
+  } else if (gpxLayer) {
+    map.fitBounds(gpxLayer.getBounds());
+  }
+}, 1000);
+  
+  // Debouncing pour les mises à jour fréquentes
+  function debounceUpdate(fn, delay = 300) {
+    return function(...args) {
+      clearTimeout(state.updateTimer);
+      state.updateTimer = setTimeout(() => fn.apply(this, args), delay);
+    };
+  }
+
+  async function chargerEquipesCouleurs() {
+    try {
+      console.log('🔄 Chargement des équipes depuis', `${apiBase}/equipes`);
+      const res = await fetch(`${apiBase}/equipes`);
+      console.log('📡 Réponse fetch équipes:', res.status, res.statusText);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Erreur ${res.status}: ${errorText}`);
+      }
+      const equipes = await res.json();
+      console.log(`✅ ${equipes.length} équipes chargées:`, equipes);
+      state.equipesCouleurs = {};
+      equipes.forEach(e => {
+        state.equipesCouleurs[e.nom] = e.couleur || "#666666";
+      });
+      console.log('📋 Couleurs équipes:', state.equipesCouleurs);
+    } catch (e) {
+      console.error("❌ Erreur chargement couleurs équipes:", e);
+      document.getElementById('summary-table').innerHTML = `<div style="color:red;padding:12px">❌ Erreur de chargement: ${e.message}</div>`;
+      state.equipesCouleurs = {};
+    }
+  }
+
+  async function getCityFromCoords(lat, lon) {
+    const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+    if (state.cityCache[key]) return state.cityCache[key];
+    
+    // Limiter le nombre de requêtes simultanées
+    while (state.pendingGeocodingRequests >= state.maxConcurrentGeocoding) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    state.pendingGeocodingRequests++;
+    
+    // Délai minimum entre requêtes (1 seconde pour respecter les limites Nominatim)
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
+    try {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'PeleVTT62 - velopointage' }
+      });
+      if (!res.ok) throw new Error("Erreur reverse geocoding");
+      const data = await res.json();
+      const city = data.address.city || data.address.town || data.address.village || data.address.county || "Ville inconnue";
+      state.cityCache[key] = city;
+      
+      // Sauvegarder le cache périodiquement
+      if (Object.keys(state.cityCache).length % 10 === 0) {
+        saveCityCache();
+      }
+      
+      return city;
+    } catch (error) {
+      console.warn('Geocoding failed:', error);
+      return "Ville inconnue";
+    } finally {
+      state.pendingGeocodingRequests--;
+    }
+  }
+
+  function regrouperPassagesSpatial(passages, rayonMetres = 150) {
+    const clusters = [];
+
+    for (const p of passages) {
+      let clusterFound = false;
+      for (const cluster of clusters) {
+        const latC = cluster[0].latitude;
+        const lonC = cluster[0].longitude;
+        const dist = distanceMeters(p.latitude, p.longitude, latC, lonC);
+        if (dist <= rayonMetres) {
+          cluster.push(p);
+          clusterFound = true;
+          break;
+        }
+      }
+      if (!clusterFound) {
+        clusters.push([p]);
+      }
+    }
+
+    const grouped = {};
+    clusters.forEach(cluster => {
+      const n = cluster.length;
+      const latMoy = cluster.reduce((sum, p) => sum + p.latitude, 0) / n;
+      const lonMoy = cluster.reduce((sum, p) => sum + p.longitude, 0) / n;
+      const key = latMoy.toFixed(6) + "," + lonMoy.toFixed(6);
+      grouped[key] = cluster;
+    });
+
+    return grouped;
+  }
+
+  function distanceMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const toRad = deg => deg * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  async function afficherPassages(passages) {
+  console.log('🗺️ Affichage de', passages.length, 'passages');
+  // Vérifier que la carte est initialisée
+  if (!map) {
+    console.warn('⚠️ Carte non initialisée, impossible d\'afficher les passages');
+    return;
+  }
+  
+  // Regroupement spatial (150 m)
+  const grouped = regrouperPassagesSpatial(passages, 150);
+  
+  // Optimisation : ne recréer que les marqueurs qui ont changé
+  const newKeys = new Set(Object.keys(grouped));
+  const oldKeys = new Set(state.markerCache.keys());
+  
+  // Supprimer les marqueurs obsolètes
+  for (const key of oldKeys) {
+    if (!newKeys.has(key)) {
+      const marker = state.markerCache.get(key);
+      if (marker) {
+        map.removeLayer(marker);
+        state.markerCache.delete(key);
+      }
+    }
+  }
+  
+  state.passageMarkers = [];
+
+  // Créer ou mettre à jour les marqueurs (en batch pour performance)
+  const markersToAdd = [];
+  
+  for (const key in grouped) {
+    const group = grouped[key];
+    const [lat, lon] = key.split(",").map(Number);
+
+    // Vérifier si le marqueur existe déjà et si le contenu a changé
+    const groupHash = group.map(p => p.id).sort().join(',');
+    const existingMarker = state.markerCache.get(key);
+    
+    if (existingMarker && existingMarker._groupHash === groupHash) {
+      // Marqueur inchangé, le réutiliser
+      state.passageMarkers.push(existingMarker);
+      continue;
+    }
+    
+    // Créer un nouveau marqueur
+    const equipesPresentes = [...new Set(group.map(p => p.equipe))];
+    const colors = equipesPresentes.map(e => state.equipesCouleurs[e] || "#666");
+    const label = group.length > 1 ? String(group.length) : "";
+    const icon = createMultiColorIcon(colors, label, "👁️");
+
+    // Popup (sécurisé contre XSS)
+    let popupContent = '<div class="popup-content">';
+    popupContent += `<strong>Point de passage</strong><br/><ul style="padding-left:18px; margin:5px 0;">`;
+    group
+      .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .forEach(p => {
+        const date = new Date(p.timestamp);
+        const heure = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        popupContent += `<li>${heure} - <strong>${escapeHtml(p.equipe)}</strong> (${escapeHtml(p.observateur || "?")})</li>`;
+      });
+    popupContent += '</ul></div>';
+
+    // Supprimer l'ancien marqueur s'il existe
+    if (existingMarker) {
+      map.removeLayer(existingMarker);
+    }
+    
+    // Créer le nouveau marqueur
+    const marker = L.marker([lat, lon], { icon }).bindPopup(popupContent);
+    marker._groupHash = groupHash; // Stocker le hash pour détecter les changements
+    
+    markersToAdd.push(marker);
+    state.markerCache.set(key, marker);
+    state.passageMarkers.push(marker);
+  }
+  
+  // Ajouter tous les nouveaux marqueurs en une seule fois (batch)
+  if (markersToAdd.length > 0) {
+    const layerGroup = L.layerGroup(markersToAdd);
+    layerGroup.addTo(map);
+  }
+
+  // Liste latérale - affichage immédiat puis chargement progressif des villes
+  const passageListDiv = document.getElementById('passage-list');
+  if (!passages.length) {
+    passageListDiv.textContent = "Aucun passage enregistré.";
+    return;
+  }
+
+  passages.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+  passageListDiv.innerHTML = "";
+
+  const passagesAffiches = passages.slice(0, 20);
+  
+  // 1. Affichage immédiat sans les villes
+  passagesAffiches.forEach(p => {
+    const date = new Date(p.timestamp);
+    const heure = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    const div = document.createElement('div');
+    div.className = "passage-item";
+    div.dataset.passageId = `${p.latitude}_${p.longitude}`;
+    div.textContent = [heure, p.equipe, "⏳", p.observateur].filter(Boolean).join(" - ");
+    div.title = "Cliquez pour centrer sur ce passage";
+    div.setAttribute('role', 'button');
+    div.setAttribute('tabindex', '0');
+
+    // Centre la carte sur le centroïde du cluster le plus proche de ce passage
+    const centerOnPassage = () => {
+      // Désactiver le mode suivi si actif
+      if (window.followMode) {
+        window.followMode = false;
+        const btn = document.getElementById("btn-my-location");
+        if (btn) btn.classList.remove('active');
+        vibrate(30);
+        resetMapRotation();
+        
+        // Masquer les infos GPS
+        const gpsInfo = document.getElementById('gps-info');
+        if (gpsInfo) gpsInfo.classList.remove('visible');
+        
+        // Désactiver la boussole
+        disableCompass();
+      }
+      
+      let bestKey = null, bestDist = Infinity;
+      for (const k in grouped) {
+        const [clat, clon] = k.split(",").map(Number);
+        const d = distanceMeters(p.latitude, p.longitude, clat, clon);
+        if (d < bestDist) { bestDist = d; bestKey = k; }
+      }
+      if (bestKey) {
+        const [clat, clon] = bestKey.split(",").map(Number);
+        map.setView([clat, clon], 17);
+        const m = state.passageMarkers.find(mk => {
+          const ll = mk.getLatLng();
+          return Math.abs(ll.lat - clat) < 1e-6 && Math.abs(ll.lng - clon) < 1e-6;
+        });
+        if (m) m.openPopup();
+      }
+    };
+    div.onclick = centerOnPassage;
+    div.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') centerOnPassage(); };
+
+    passageListDiv.appendChild(div);
+  });
+
+  // 2. Chargement des villes progressif (séquentiel pour respecter limites Nominatim)
+  // On charge d'abord les villes déjà en cache, puis les autres
+  const passagesAvecCache = [];
+  const passagesSansCache = [];
+  
+  passagesAffiches.forEach(p => {
+    const key = `${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`;
+    if (state.cityCache[key]) {
+      passagesAvecCache.push({ p, city: state.cityCache[key] });
+    } else {
+      passagesSansCache.push(p);
+    }
+  });
+  
+  // Afficher immédiatement les villes en cache
+  passagesAvecCache.forEach(({ p, city }) => {
+    const div = passageListDiv.querySelector(`[data-passage-id="${p.latitude}_${p.longitude}"]`);
+    if (div) {
+      const date = new Date(p.timestamp);
+      const heure = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      div.textContent = [heure, p.equipe, city, p.observateur].filter(Boolean).join(" - ");
+    }
+  });
+  
+  // Charger les autres villes progressivement (en background)
+  if (passagesSansCache.length > 0) {
+    // Limiter à 10 requêtes max pour ne pas surcharger Nominatim
+    const toLoad = passagesSansCache.slice(0, 10);
+    
+    (async () => {
+      for (const p of toLoad) {
+        try {
+          const city = await getCityFromCoords(p.latitude, p.longitude);
+          const div = passageListDiv.querySelector(`[data-passage-id="${p.latitude}_${p.longitude}"]`);
+          if (div) {
+            const date = new Date(p.timestamp);
+            const heure = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            div.textContent = [heure, p.equipe, city, p.observateur].filter(Boolean).join(" - ");
+          }
+        } catch (err) {
+          console.warn('Erreur geocoding:', err);
+        }
+      }
+      // Sauvegarder le cache après toutes les requêtes
+      saveCityCache();
+    })();
+  }
+}
+
+// Débouncer les mises à jour des passages
+const debouncedAfficherPassages = debounceUpdate(afficherPassages, 100);
+
+async function ajouterPassage(passage) {
+    // Vérifier si le passage existe déjà pour éviter tout doublon
+    const dejaPresent = state.passagesGlobal.some(p => p.id === passage.id);
+    if (!dejaPresent) {
+        state.passagesGlobal.unshift(passage);
+        if (state.passagesGlobal.length > 100) state.passagesGlobal.pop();
+        
+        // Mise à jour immédiate pour meilleure réactivité
+        await afficherPassages(state.passagesGlobal);
+        state.lastWebSocketUpdate = Date.now();
+    }
+}
+
+  const wsProtocol = (location.protocol === 'https:') ? 'wss' : 'ws';
+  const wsUrl = `${wsProtocol}://${location.host}/ws/passages`;
+  let ws;
+
+  function connectWS() {
+    try {
+      ws = new WebSocket(wsUrl);
+    } catch (error) {
+      console.error('Erreur création WebSocket:', error);
+      setTimeout(connectWS, 2000);  // Reconnexion rapide
+      return;
+    }
+    
+    ws.addEventListener("open", () => {
+      console.log("✅ WebSocket connecté");
+      // Retirer le message d'erreur s'il existe
+      const statusDiv = document.getElementById('ws-status');
+      if (statusDiv) statusDiv.remove();
+    });
+    
+    ws.addEventListener("error", (error) => {
+      console.error('❌ WebSocket erreur:', error);
+    });
+
+ws.addEventListener("message", async event => {
+  try {
+    const msg = JSON.parse(event.data);
+    console.log('📨 Message WebSocket reçu:', msg.type);
+
+    if (msg.type === "passages") {
+      state.passagesGlobal = msg.passages || [];
+      console.log(`📋 ${state.passagesGlobal.length} passages reçus`);
+      await afficherPassages(state.passagesGlobal);
+      state.lastWebSocketUpdate = Date.now();
+
+    } else if (msg.type === "new_passage") {
+      await ajouterPassage(msg.passage);
+      
+      // Après un nouveau passage, rafraîchir aussi les pins d'état
+      // car la position de l'équipe a changé
+      console.log(`📍 Nouveau passage reçu pour ${msg.passage.equipe}, rafraîchissement des pins...`);
+      
+      // Recharger les équipes pour avoir les nouvelles positions
+      try {
+        const res = await fetch(`${apiBase}/equipes`);
+        if (res.ok) {
+          const equipes = await res.json();
+          const toutesEquipes = equipes.map(e => ({
+            nom: e.nom,
+            couleur: e.couleur || "#666666",
+            etat: e.etat || 'non partie',
+            latitude: parseFloat(e.latitude) || null,
+            longitude: parseFloat(e.longitude) || null
+          }));
+          
+          afficherEtatPins(toutesEquipes);
+          console.log('✅ Pins mis à jour après nouveau passage');
+        }
+      } catch (error) {
+        console.error('Erreur rafraîchissement pins:', error);
+      }
+      
+      // Recharger aussi le tableau summary
+      try {
+        const summaryRes = await fetch(`${apiBase}/summary`);
+        if (summaryRes.ok) {
+          const summary = await summaryRes.json();
+          refreshSummaryTable(summary);
+          console.log('✅ Tableau summary mis à jour après nouveau passage');
+        }
+      } catch (error) {
+        console.error('Erreur rafraîchissement summary:', error);
+      }
+
+    } else if (msg.type === "delete_passage") {
+      state.passagesGlobal = state.passagesGlobal.filter(p => p.id !== msg.id);
+      // Mise à jour immédiate pour meilleure réactivité
+      await afficherPassages(state.passagesGlobal);
+      state.lastWebSocketUpdate = Date.now();
+
+  } else if (msg.type === "etat_equipe") {
+    // Mise à jour instantanée de l'état d'une équipe
+    console.log(`🔄 État équipe ${msg.equipe}: ${msg.etat}`, msg);
+    
+    // Mettre à jour dans state.equipesCouleurs si nécessaire
+    if (msg.couleur && msg.equipe) {
+      state.equipesCouleurs[msg.equipe] = msg.couleur;
+    }
+    
+    // Si le message contient les coordonnées, créer immédiatement un pin
+    if (msg.latitude && msg.longitude && msg.equipe) {
+      console.log(`📍 Coordonnées reçues via WebSocket pour ${msg.equipe}: [${msg.latitude}, ${msg.longitude}]`);
+      
+      // Créer immédiatement un marqueur temporaire pour cette équipe
+      const equipeUpdate = {
+        nom: msg.equipe,
+        couleur: msg.couleur || state.equipesCouleurs[msg.equipe] || "#666666",
+        etat: msg.etat,
+        latitude: parseFloat(msg.latitude),
+        longitude: parseFloat(msg.longitude)
+      };
+      
+      // Rafraîchir les pins en priorisant cette mise à jour
+      // On va recharger toutes les équipes pour avoir la vue complète
+      fetch(`${apiBase}/equipes`)
+        .then(res => res.json())
+        .then(equipes => {
+          // Remplacer les données de l'équipe mise à jour
+          const idx = equipes.findIndex(e => e.nom === msg.equipe);
+          if (idx !== -1) {
+            equipes[idx].latitude = msg.latitude;
+            equipes[idx].longitude = msg.longitude;
+            equipes[idx].etat = msg.etat;
+            equipes[idx].couleur = msg.couleur;
+          }
+          
+          const toutesEquipes = equipes.map(e => ({
+            nom: e.nom,
+            couleur: e.couleur || "#666666",
+            etat: e.etat || 'non partie',
+            latitude: parseFloat(e.latitude) || null,
+            longitude: parseFloat(e.longitude) || null
+          }));
+          
+          afficherEtatPins(toutesEquipes);
+          console.log('✅ Pins mis à jour avec coordonnées WebSocket');
+        })
+        .catch(err => console.error('Erreur:', err));
+    } else {
+      // Pas de coordonnées dans le message, recharger normalement
+      fetch(`${apiBase}/equipes`)
+        .then(res => res.json())
+        .then(equipes => {
+          equipes.forEach(e => {
+            state.equipesCouleurs[e.nom] = e.couleur || "#666666";
+          });
+          
+          const toutesEquipes = equipes.map(e => ({
+            nom: e.nom,
+            couleur: e.couleur || "#666666",
+            etat: e.etat || 'non partie',
+            latitude: parseFloat(e.latitude) || null,
+            longitude: parseFloat(e.longitude) || null
+          }));
+          
+          afficherEtatPins(toutesEquipes);
+          console.log('✅ Pins mis à jour sans coordonnées WebSocket');
+        })
+        .catch(err => console.error('Erreur:', err));
+    }
+    
+    // Rafraîchir l'affichage
+    state.lastWebSocketUpdate = Date.now();
+    
+    // Recharger le tableau des passages (au cas où un passage automatique a été créé)
+    try {
+      const passagesRes = await fetch(`${apiBase}/passages?limit=100`);
+      if (passagesRes.ok) {
+        state.passagesGlobal = await passagesRes.json();
+        await afficherPassages(state.passagesGlobal);
+        console.log('✅ Tableau passages mis à jour après changement d\'état');
+      }
+    } catch (error) {
+      console.error('Erreur rafraîchissement passages:', error);
+    }
+    
+    // Aussi recharger le summary pour garantir la cohérence
+    try {
+      const summaryRes = await fetch(`${apiBase}/summary`);
+      if (summaryRes.ok) {
+        const summary = await summaryRes.json();
+        refreshSummaryTable(summary);
+        console.log('✅ Tableau summary mis à jour après changement d\'état');
+      }
+    } catch (error) {
+      console.error('Erreur rechargement summary:', error);
+    }
+
+  } else if (msg.type === "summary") {
+    console.log("Résumé reçu:", msg.summary);
+    refreshSummaryTable(msg.summary);
+
+    // Compléter les équipes pour afficher les pins
+    const toutesEquipes = Object.keys(state.equipesCouleurs).map(nom => {
+      const s = msg.summary.find(e => e.equipe === nom) || {};
+      // Priorité : coordonnées de last_passage (qui inclut maintenant les coords de la table equipes)
+      const lat = s.last_passage ? parseCoord(s.last_passage.latitude) : null;
+      const lon = s.last_passage ? parseCoord(s.last_passage.longitude) : null;
+      
+      return {
+        nom,
+        couleur: state.equipesCouleurs[nom],
+        etat: s.etat || 'non partie',
+        latitude: lat,
+        longitude: lon,
+        distance_from_start_km: s.distance_from_start_km !== null ? s.distance_from_start_km : null,
+        distance_to_end_km: s.distance_to_end_km !== null ? s.distance_to_end_km : null
+      };
+    });
+
+    afficherEtatPins(toutesEquipes);
+  }
+  } catch (error) {
+    console.error('Erreur traitement message WebSocket:', error);
+  }
+});
+
+    ws.addEventListener("close", (event) => {
+      console.log(`⚠️ WebSocket fermé (code: ${event.code}), reconnexion dans 2s`);
+      // Afficher un message à l'utilisateur
+      const sidebar = document.getElementById('sidebar');
+      let statusDiv = document.getElementById('ws-status');
+      if (!statusDiv) {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'ws-status';
+        statusDiv.style.cssText = 'background:#ff9800;color:white;padding:8px;border-radius:8px;margin-bottom:8px;font-size:0.85rem;';
+        sidebar.insertBefore(statusDiv, sidebar.firstChild);
+      }
+      statusDiv.textContent = '⚠️ Connexion temps réel perdue - Reconnexion en cours...';
+      
+      setTimeout(connectWS, 2000);  // Reconnexion rapide
+    });
+    };
+    setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send("ping");
+    }, 25000);
+  
+  // Polling de sécurité : rafraîchir automatiquement toutes les 5 secondes
+  setInterval(async () => {
+    try {
+      // Recharger le summary
+      const summaryRes = await fetch(`${apiBase}/summary`);
+      if (summaryRes.ok) {
+        const summary = await summaryRes.json();
+        refreshSummaryTable(summary);
+        
+        // Mettre à jour les pins
+        const toutesEquipes = Object.keys(state.equipesCouleurs).map(nom => {
+          const s = summary.find(e => e.equipe === nom) || {};
+          const lat = s.last_passage ? parseCoord(s.last_passage.latitude) : null;
+          const lon = s.last_passage ? parseCoord(s.last_passage.longitude) : null;
+          
+          return {
+            nom,
+            couleur: state.equipesCouleurs[nom],
+            etat: s.etat || 'non partie',
+            latitude: lat,
+            longitude: lon,
+            distance_from_start_km: s.distance_from_start_km !== null ? s.distance_from_start_km : null,
+            distance_to_end_km: s.distance_to_end_km !== null ? s.distance_to_end_km : null
+          };
+        });
+        
+        afficherEtatPins(toutesEquipes);
+        console.log('🔄 Rafraîchissement automatique effectué');
+      }
+    } catch (error) {
+      console.error('Erreur polling:', error);
+    }
+  }, 5000); // Toutes les 5 secondes
+  
+
+function refreshSummaryTable(summary) {
+  console.log('🔄 Refresh summary table avec', summary.length, 'entrées');
+  let tableContainer = document.getElementById('summary-table');
+  if (!tableContainer) {
+    tableContainer = document.createElement('div');
+    tableContainer.id = 'summary-table';
+    tableContainer.style.marginTop = '12px';
+    document.getElementById('sidebar').appendChild(tableContainer);
+  }
+
+  // On s'assure que toutes les équipes sont dans le summary
+  const summaryComplet = Object.keys(state.equipesCouleurs).map(nom => {
+    const s = summary.find(e => e.equipe === nom) || {};
+    // Priorité : ville du last_passage (qui contient maintenant la ville de la table equipes)
+    let ville = '-';
+    if (s.last_passage && s.last_passage.ville) {
+      ville = s.last_passage.ville;
+    }
+    
+    return {
+      equipe: nom,
+      couleur: state.equipesCouleurs[nom] || '#666',
+      etat: s.etat || 'non partie',
+      ville: ville,
+      distance_from_start_km: s.distance_from_start_km != null ? s.distance_from_start_km : null,
+      distance_to_end_km: s.distance_to_end_km != null ? s.distance_to_end_km : null
+    };
+  });
+
+  let html = '<h3 style="margin:0 0 12px 0"> 📊 Récapitulatif équipes</h3>';
+  html += '<table style="width:100%;border-collapse:collapse">';
+  html += '<thead><tr>';
+  html += '<th style="text-align:left">Équipe</th>';
+  html += '<th style="text-align:left">Ville</th>';
+  html += '<th style="text-align:left">PK</th>';
+  html += '<th style="text-align:left">Reste</th>';
+  html += '<th style="text-align:left">État</th>';
+  html += '</tr></thead><tbody>';
+
+summaryComplet.forEach(s => {
+  const d1 = s.distance_from_start_km != null ? s.distance_from_start_km.toFixed(1) : '-';
+  const d2 = s.distance_to_end_km != null ? s.distance_to_end_km.toFixed(1) : '-';
+  html += `<tr>
+    <td>${escapeHtml(s.equipe)}</td>
+    <td>${escapeHtml(s.ville || '-')}</td>
+    <td>${d1}</td>
+    <td>${d2}</td>
+    <td>${escapeHtml(s.etat)}</td>
+  </tr>`;
+});
+
+  html += '</tbody></table>';
+  tableContainer.innerHTML = html;
+}
+
+let startPoint = null;
+let endPoint = null;
+let markersLayer = L.layerGroup().addTo(map);
+
+// Fonction consolidée pour créer des icônes d'état
+function createEmojiIcon(etat, color, size = 30) {
+  const emojiMap = {
+    'pause': '✋',
+    'temps spi': '🙏',
+    'non partie': '🚦',
+    'arrivée': '🏁'
+  };
+  const emoji = emojiMap[etat.toLowerCase()] || '❓';
+  
+  const html = `
+    <div style="
+      width: ${size}px;
+      height: ${size}px;
+      background: ${color};
+      border: 2px solid #000;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: ${size * 0.6}px;
+      color: white;
+      text-shadow: 0 0 3px rgba(0,0,0,0.7);
+      user-select: none;
+    " role="img" aria-label="${escapeHtml(etat)}">
+      ${emoji}
+    </div>
+  `;
+  return L.divIcon({ 
+    html, 
+    className: "", 
+    iconSize: [size, size], 
+    iconAnchor: [size/2, size/2],
+    popupAnchor: [0, -size/2]
+  });
+}
+
+// Crée un cercle divisé en parts de couleurs
+function createMultiColorIcon(colors, label = "", emoji = "👁️") {
+  const size = 30;
+  const n = colors.length;
+
+  // Changer l'emoji si toutes les équipes sont passées
+  if (n === 0) {
+    emoji = "✅"; // ou 🏁 selon ce que tu veux
+  }
+
+  let bg;
+  if (n <= 1) {
+    bg = (n === 1 ? colors[0] : "#666"); // fallback mono-couleur
+  } else {
+    const gradientParts = colors.map((c, i) => {
+      const start = (i / n) * 100;
+      const end = ((i + 1) / n) * 100;
+      return `${c} ${start}%, ${c} ${end}%`;
+    }).join(", ");
+    bg = `conic-gradient(${gradientParts})`;
+  }
+
+  const html = `
+    <div style="
+      width:${size}px;
+      height:${size}px;
+      border-radius:50%;
+      border:2px solid black;
+      background:${bg};
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:14px;
+      font-weight:bold;
+      color:white;
+      text-shadow:0 0 2px rgba(0,0,0,0.7);
+      user-select:none;
+      flex-direction:column;
+    ">
+      <div>${emoji}</div>
+      <div style="font-size:12px">${label || ""}</div>
+    </div>
+  `;
+  return L.divIcon({
+    html,
+    className: "",
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+    popupAnchor: [0, -size/2]
+  });
+}
+
+function afficherEtatPins(equipes) {
+  console.log('📍 Affichage pins pour', equipes.length, 'équipes:', equipes);
+  markersLayer.clearLayers();
+
+  const nonParties = equipes.filter(e => e.etat.toLowerCase() === "non partie");
+  const arrivees = equipes.filter(e => e.etat.toLowerCase() === "arrivée");
+  const autres = equipes.filter(e => ["pause", "pause midi", "temps spi"].includes(e.etat.toLowerCase()));
+  
+  console.log(`📊 Non parties: ${nonParties.length}, Arrivées: ${arrivees.length}, Autres: ${autres.length}`);
+
+  // Non parties regroupées au départ
+  if (nonParties.length && startPoint) {
+    const colors = nonParties.map(e => e.couleur);
+    const label = nonParties.length;
+    const emoji = "🚦";
+    L.marker(startPoint, { icon: createMultiColorIcon(colors, label, emoji) })
+      .bindPopup("Non parties:<br>" + nonParties.map(e => e.nom).join("<br>"))
+      .addTo(markersLayer);
+  }
+
+  // Arrivées regroupées à leur position moyenne
+  if (arrivees.length) {
+    const arriveesFiltrees = arrivees.filter(e => e.latitude && e.longitude);
+    if (arriveesFiltrees.length > 0) {
+      const colors = arriveesFiltrees.map(e => e.couleur);
+      const label = arriveesFiltrees.length;
+      const emoji = "🏁";
+      const lat = arriveesFiltrees.reduce((sum, e) => sum + e.latitude, 0) / arriveesFiltrees.length;
+      const lon = arriveesFiltrees.reduce((sum, e) => sum + e.longitude, 0) / arriveesFiltrees.length;
+
+      L.marker([lat, lon], { icon: createMultiColorIcon(colors, label, emoji) })
+        .bindPopup("Arrivées:<br>" + arriveesFiltrees.map(e => e.nom).join("<br>"))
+        .addTo(markersLayer);
+    }
+  }
+
+  // Pause / Temps SPI regroupées si proches
+  const clusters = [];
+  const rayonMetres = 100; // rayon de fusion en mètres
+
+  autres.forEach(e => {
+    if (!e.latitude || !e.longitude) return;
+
+    let clusterFound = false;
+    for (const cluster of clusters) {
+      const latC = cluster[0].latitude;
+      const lonC = cluster[0].longitude;
+      const dist = distanceMeters(e.latitude, e.longitude, latC, lonC);
+      if (dist <= rayonMetres) {
+        cluster.push(e);
+        clusterFound = true;
+        break;
+      }
+    }
+    if (!clusterFound) clusters.push([e]);
+  });
+
+  clusters.forEach(cluster => {
+    const lat = cluster.reduce((sum, e) => sum + e.latitude, 0) / cluster.length;
+    const lon = cluster.reduce((sum, e) => sum + e.longitude, 0) / cluster.length;
+    const colors = cluster.map(e => e.couleur);
+    const label = cluster.length === 1 ? "" : cluster.length;
+    
+    // Déterminer l'emoji en fonction de l'état
+    let emoji = "✋";
+    
+    // Si toutes les équipes sont dans le même état, utiliser l'emoji correspondant
+    const etats = cluster.map(e => e.etat.toLowerCase());
+    const etatUnique = etats.every(e => e === etats[0]);
+    
+    if (etatUnique) {
+      const etatLower = etats[0];
+      if (etatLower === "pause") emoji = "✋";
+      else if (etatLower === "pause midi") emoji = "🍽️";
+      else if (etatLower === "temps spi") emoji = "🙏";
+      else emoji = "✋";
+    }
+
+    L.marker([lat, lon], { icon: createMultiColorIcon(colors, label, emoji) })
+      .bindPopup("Équipes:<br>" + cluster.map(e => `${e.nom} (${e.etat})`).join("<br>"))
+      .addTo(markersLayer);
+  });
+
+  // Les équipes qui roulent n'ont pas de pin
+}
+
+let gpxStartPoint = null;
+
+  // Chargement initial avec Promise.all pour paralléliser
+  (async () => {
+    const startTime = Date.now();
+    console.log('🚀 Démarrage chargement initial...');
+    
+    try {
+      // Charger équipes, passages et summary en parallèle
+      const [equipes, passages, summary] = await Promise.all([
+        chargerEquipesCouleurs(),
+        fetch(`${apiBase}/passages?limit=100`).then(r => r.ok ? r.json() : []),
+        fetch(`${apiBase}/summary`).then(r => r.ok ? r.json() : [])
+      ]);
+      
+      console.log(`✅ Données chargées en ${Date.now() - startTime}ms`);
+      
+      // Afficher les passages
+      if (passages.length > 0) {
+        state.passagesGlobal = passages;
+        console.log(`📋 ${state.passagesGlobal.length} passages chargés`);
+        await afficherPassages(state.passagesGlobal);
+      }
+      
+      // Afficher le summary
+      if (summary.length > 0) {
+        console.log(`📊 Summary chargé:`, summary);
+        refreshSummaryTable(summary);
+        
+        // Afficher les pins
+        const toutesEquipes = Object.keys(state.equipesCouleurs).map(nom => {
+          const s = summary.find(e => e.equipe === nom) || {};
+          const lat = s.last_passage ? parseCoord(s.last_passage.latitude) : null;
+          const lon = s.last_passage ? parseCoord(s.last_passage.longitude) : null;
+          
+          return {
+            nom,
+            couleur: state.equipesCouleurs[nom],
+            etat: s.etat || 'non partie',
+            latitude: lat,
+            longitude: lon,
+            distance_from_start_km: s.distance_from_start_km !== null ? s.distance_from_start_km : null,
+            distance_to_end_km: s.distance_to_end_km !== null ? s.distance_to_end_km : null
+          };
+        });
+        
+        afficherEtatPins(toutesEquipes);
+      }
+      
+      console.log(`✅ Chargement initial terminé en ${Date.now() - startTime}ms`);
+    } catch (e) {
+      console.error('❌ Erreur chargement initial:', e);
+    }
+    
+    // Tenter la connexion WebSocket
+    connectWS();
+  })();
+
+</script>
+</body>
+</html>
