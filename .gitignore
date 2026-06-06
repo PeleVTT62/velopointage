@@ -8,7 +8,7 @@
 #Readme inutiles
 ADMIN_ARCHIVAGE.md
 CHANGELOG_PWA.md
-DEPANNGE_502.md
+DEPANNAGE_502.md
 GUIDE_ARCHIVAGE.md
 deploy/dev
 deploy/prod
@@ -17,6 +17,7 @@ RECAPITULATIF_ARCHIVAGE.md
 RESUME_SOLUTION.md
 TECHNICAL_PWA.md
 UPDATE_PROCESS.md
+ARCHIVAGE.md
 
 # Base de données
 data/

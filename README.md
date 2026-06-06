@@ -1,8 +1,8 @@
-# Velopointage - Système de pointage pour cyclistes
+# Velopointage - Système de pointage du péléVTT
 
 ## À propos
 
-Application web pour le suivi en temps réel des équipes de cyclistes lors d'événements (type pèlerinage VTT).
+Application web pour le suivi en temps réel des équipes de cyclistes lors du PéléVTT
 
 - **Backend** : FastAPI (Python)
 - **Frontend** : HTML5/JavaScript vanilla
@@ -18,10 +18,9 @@ Application web pour le suivi en temps réel des équipes de cyclistes lors d'é
 ✅ Import de traces GPX
 ✅ Calcul distance d'après itinéraire
 ✅ Reverse geocoding (ville au point de passage)
-✅ Authentification simple pour opérations sensibles
 ✅ Responsive mobile
 ✅ **Deux applications PWA installables** (TTV + anim)
-✅ **Mises à jour automatiques** du cache
+✅ **Mises à jour automatiques** 
 
 📱 **Voir [GUIDE_INSTALLATION.md](GUIDE_INSTALLATION.md) pour installer les applications sur mobile**
 
@@ -29,38 +28,7 @@ Application web pour le suivi en temps réel des équipes de cyclistes lors d'é
 
 Voir aussi le sommaire des modes de déploiement: `deploy/README.md`.
 
-### Avec Docker Compose (recommandé)
-
-```bash
-cp .env.example .env
-# Éditer .env avec votre ADMIN_KEY
-docker-compose up -d
-```
-
-Puis accédez à `http://localhost:62000`
-
-### Mode développement (reload à chaud)
-
-Pour développer sans rebuild à chaque modification:
-
-```bash
-docker compose -f deploy/dev/docker-compose.yml up -d --build
-```
-
-Ce mode monte le code en volume et active `UVICORN_RELOAD=1`.
-
-### Mode multi-route (instances dediees)
-
-Pour executer plusieurs routes en parallele avec isolation des donnees:
-
-```bash
-cp deploy/prod/.env.example .env.multi-route
-docker compose --env-file .env.multi-route -f deploy/prod/docker-compose.yml up -d --build
-```
-
-Documentation detaillee: `deploy/prod/README.md`
-
-### Mode GitHub minimal (1 route, defaults)
+### Mode Installation Facile (recommandé)
 
 Pour permettre à une autre route d'installer rapidement avec configuration minimale:
 
@@ -71,6 +39,17 @@ docker compose --env-file .env.github-minimal -f deploy/github/docker-compose.ym
 ```
 
 Guide complet: `deploy/github/README.md`
+
+### Avec Docker Compose 
+
+```bash
+cp .env.example .env
+# Éditer .env avec votre ADMIN_KEY
+docker-compose up -d
+```
+
+Puis accédez à `http://localhost:62000`
+
 
 ### Sans Docker
 
@@ -157,8 +136,6 @@ uvicorn main:app --host 0.0.0.0 --port 62000
 ├── .env.example            # Configuration exemple
 ├── deploy/                  # Configs deploiement (dev/prod/github)
 │   ├── README.md
-│   ├── dev/
-│   ├── prod/
 │   └── github/
 ├── requirements.txt        # Dépendances Python
 └── static/
@@ -168,33 +145,6 @@ uvicorn main:app --host 0.0.0.0 --port 62000
      ├── anim.html           # Interface pointage
     └── gpx/               # Traces GPX
 ```
-
-## Développement
-
-### Installer dépendances
-```bash
-pip install -r requirements.txt
-```
-
-### Lancer en dev (avec reload)
-```bash
-export REDIS_ENABLED=false
-uvicorn main:app --reload
-```
-
-### Tests
-```bash
-# WebSocket test
-python -m pytest static/test-ws.html
-```
-
-## Production
-
-Voir [deploy/prod/README.md](deploy/prod/README.md) et [deploy/dev/SYNOLOGY.md](deploy/dev/SYNOLOGY.md) pour :
-- Reverse proxy HTTPS
-- Gestion Redis
-- Backups
-- Monitoring
 
 ## Architecture
 
@@ -219,34 +169,3 @@ L'application fonctionne en mode PWA (Progressive Web App) avec **deux interface
 2. **Application anim** (`/static/anim.html`) - Interface simplifiée
 
 Les deux applications peuvent être installées séparément sur iOS/Android et partagent le même système de mise à jour.
-
-### 📚 Documentation complète
-
-- 📱 **[QUELLE_APP.md](QUELLE_APP.md)** - Quelle application installer selon votre rôle ?
-- 🚀 **[GUIDE_INSTALLATION.md](GUIDE_INSTALLATION.md)** - Guide rapide d'installation mobile
-- 📖 **[INSTALL_PWA.md](INSTALL_PWA.md)** - Documentation détaillée des deux applications
-- 🔄 **[UPDATE_PROCESS.md](UPDATE_PROCESS.md)** - Processus de mise à jour (pour admins)
-- 🔧 **[TECHNICAL_PWA.md](TECHNICAL_PWA.md)** - Architecture technique (pour devs)
-
-### Déploiement
-
-**Avant chaque déploiement**, exécutez :
-
-```bash
-python3 bump_version.py
-```
-
-Cela incrémente automatiquement la version du cache et force la mise à jour sur **toutes les applications installées**. Les utilisateurs verront "Nouvelle version disponible" et l'application se rechargera automatiquement après 3 secondes.
-
-## Problèmes connus
-
-- **Redis non disponible** : App fonctionne en fallback mémoire
-- **Nominatim lent** : Appels réseau à chaque passage
-
-## Licence
-
-À définir
-
-## Contact/Support
-
-Voir issues GitHub ou documentation locale.
