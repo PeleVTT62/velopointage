@@ -1,8 +1,8 @@
-# Velopointage - Système de pointage du péléVTT
+# Velopointage - Système de pointage pour PéléVTT
 
 ## À propos
 
-Application web pour le suivi en temps réel des équipes de cyclistes lors du PéléVTT
+Application web pour le suivi en temps réel des équipes de cyclistes lors du PéléVTT.
 
 - **Backend** : FastAPI (Python)
 - **Frontend** : HTML5/JavaScript vanilla
@@ -18,9 +18,8 @@ Application web pour le suivi en temps réel des équipes de cyclistes lors du P
 ✅ Import de traces GPX
 ✅ Calcul distance d'après itinéraire
 ✅ Reverse geocoding (ville au point de passage)
-✅ Responsive mobile
 ✅ **Deux applications PWA installables** (TTV + anim)
-✅ **Mises à jour automatiques** 
+✅ **Mises à jour automatiques**
 
 📱 **Voir [GUIDE_INSTALLATION.md](GUIDE_INSTALLATION.md) pour installer les applications sur mobile**
 
@@ -28,7 +27,8 @@ Application web pour le suivi en temps réel des équipes de cyclistes lors du P
 
 Voir aussi le sommaire des modes de déploiement: `deploy/README.md`.
 
-### Mode Installation Facile (recommandé)
+
+### Mode Installation facile (recommandé)
 
 Pour permettre à une autre route d'installer rapidement avec configuration minimale:
 
@@ -40,7 +40,7 @@ docker compose --env-file .env.github-minimal -f deploy/github/docker-compose.ym
 
 Guide complet: `deploy/github/README.md`
 
-### Avec Docker Compose 
+### Avec Docker Compose (recommandé)
 
 ```bash
 cp .env.example .env
@@ -49,24 +49,6 @@ docker-compose up -d
 ```
 
 Puis accédez à `http://localhost:62000`
-
-
-### Sans Docker
-
-```bash
-pip install -r requirements.txt
-export ADMIN_KEY="votreClé"
-export ALLOWED_ORIGINS="http://localhost:62000"
-uvicorn main:app --host 0.0.0.0 --port 62000
-```
-
-## Configuration de sécurité
-
-**IMPORTANT** : Avant production
-
-1. Changer `ADMIN_KEY` dans `.env`
-2. Configurer `ALLOWED_ORIGINS` (voir [deploy/prod/README.md](deploy/prod/README.md))
-3. Utiliser HTTPS via reverse proxy
 
 ## API
 
@@ -136,6 +118,8 @@ uvicorn main:app --host 0.0.0.0 --port 62000
 ├── .env.example            # Configuration exemple
 ├── deploy/                  # Configs deploiement (dev/prod/github)
 │   ├── README.md
+│   ├── dev/
+│   ├── prod/
 │   └── github/
 ├── requirements.txt        # Dépendances Python
 └── static/
