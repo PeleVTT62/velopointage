@@ -789,7 +789,7 @@
     }
 
     // Afficher les logs avec détection des nouveaux (sans clignotement)
-    function displayLogs(logs) {
+    function displayLogs(logs, forceFullRender = false) {
       const container = document.getElementById('logList');
       
       if (logs.length === 0) {
@@ -804,9 +804,13 @@
       
       // Identifier les nouveaux logs
       const newLogs = logs.filter(log => !displayedLogIds.has(log.id));
+      const hasRenderedItems = container.querySelector('.log-item') !== null;
       
-      // Si c'est le premier chargement, tout afficher
-      if (isFirstLoad || displayedLogIds.size === 0) {
+      // Rendu complet dans ces cas:
+      // - premier chargement
+      // - changement de filtre
+      // - l'affichage courant ne contient plus d'items (ex: état vide)
+      if (isFirstLoad || displayedLogIds.size === 0 || forceFullRender || !hasRenderedItems) {
         container.innerHTML = logs.map(log => createLogItemHTML(log, false)).join('');
         logs.forEach(log => displayedLogIds.add(log.id));
       } else if (newLogs.length > 0) {
@@ -935,7 +939,7 @@
         );
       }
       
-      displayLogs(filtered);
+      displayLogs(filtered, true);
     }
 
     // Afficher le loading

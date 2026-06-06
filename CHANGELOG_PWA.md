@@ -2,7 +2,7 @@
 
 ## Problème initial
 
-Les applications PWA (organisateurs et animateurs) ne se mettaient pas à jour sur les appareils iOS et Android après un déploiement, car elles restaient bloquées par le cache du Service Worker.
+Les applications PWA (TTV et anim) ne se mettaient pas à jour sur les appareils iOS et Android après un déploiement, car elles restaient bloquées par le cache du Service Worker.
 
 ## Solution mise en place
 
@@ -57,7 +57,7 @@ Les applications PWA (organisateurs et animateurs) ne se mettaient pas à jour s
 ├─────────────────────────────────────────────────────────┤
 │                                                           │
 │  ┌──────────────────────┐  ┌──────────────────────┐    │
-│  │  App Organisateurs   │  │   App Animateurs     │    │
+│  │  App TTV   │  │   App anim     │    │
 │  │  (index.html)        │  │   (anim.html)        │    │
 │  │                      │  │                      │    │
 │  │  • Carte complète    │  │  • Déclaration état  │    │
@@ -138,10 +138,10 @@ python3 bump_version.py major
 | Fichier | Rôle |
 |---------|------|
 | [static/sw.js](static/sw.js) | Service Worker - gère le cache des deux apps |
-| [static/index.html](static/index.html) | App organisateurs - enregistre SW |
-| [static/anim.html](static/anim.html) | App animateurs - enregistre SW |
-| [site.webmanifest](site.webmanifest) | Manifest app organisateurs |
-| [site_anim.webmanifest](site_anim.webmanifest) | Manifest app animateurs |
+| [static/index.html](static/index.html) | App TTV - enregistre SW |
+| [static/anim.html](static/anim.html) | App anim - enregistre SW |
+| [site.webmanifest](site.webmanifest) | Manifest app TTV |
+| [site_anim.webmanifest](site_anim.webmanifest) | Manifest app anim |
 | [bump_version.py](bump_version.py) | Script d'incrémentation de version |
 | [verify_pwa.py](verify_pwa.py) | Script de vérification config |
 | [deploy.sh](deploy.sh) | Script de déploiement automatique |

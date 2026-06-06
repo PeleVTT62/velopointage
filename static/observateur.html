@@ -229,6 +229,13 @@
       box-shadow: 0 4px 12px rgba(52, 152, 219, 0.25);
     }
 
+    .header-observateur-main {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      min-width: 0;
+    }
+
     .gps-indicator {
       display: flex;
       align-items: center;
@@ -299,6 +306,19 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
+    #btn-changer-observateur {
+      width: 2.1rem;
+      height: 2.1rem;
+      padding: 0;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
     .header-observateur button:hover {
       background: rgba(255, 255, 255, 0.35);
       transform: translateY(-2px);
@@ -318,6 +338,8 @@
       border: 3px solid transparent;
       border-radius: 12px;
       cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
       transition: all 0.3s ease;
       text-align: center;
       background: white;
@@ -339,14 +361,16 @@
       transition: height 0.3s ease;
     }
 
-    #boutons-equipes button:hover::before {
-      height: 100%;
-      opacity: 0.1;
-    }
+    @media (hover: hover) and (pointer: fine) {
+      #boutons-equipes button:hover::before {
+        height: 100%;
+        opacity: 0.1;
+      }
 
-    #boutons-equipes button:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-lg);
+      #boutons-equipes button:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+      }
     }
 
     #boutons-equipes button .team-badge {
@@ -690,9 +714,20 @@
         font-size: 0.95rem;
       }
 
+      .header-observateur-main {
+        width: 100%;
+      }
+
       .header-observateur button {
         padding: 0.5rem 1rem;
         font-size: 0.9rem;
+      }
+
+      #btn-changer-observateur {
+        width: 2rem;
+        height: 2rem;
+        padding: 0;
+        font-size: 0.95rem;
       }
 
       #map {
@@ -744,13 +779,13 @@
 
     <div id="interface" class="hidden">
       <div class="header-observateur">
-        <div>TTV Parcours : <strong><span id="nom-affiche"></span></strong></div>
+        <div class="header-observateur-main">
+          <div>TTV Parcours : <strong><span id="nom-affiche"></span></strong></div>
+          <button id="btn-changer-observateur" title="Modifier le prénom TTV" aria-label="Modifier le prénom TTV">✏️</button>
+        </div>
         <div class="gps-indicator searching" id="gps-indicator">
           <span>📡</span>
           <span id="gps-quality">Recherche GPS...</span>
-        </div>
-        <div class="header-observateur-buttons">
-          <button id="btn-changer-observateur">✏️ Modifier</button>
         </div>
       </div>
         
@@ -871,6 +906,44 @@
     let gpxBounds = null;
     let lastGPSAccuracy = null;
     let refreshInterval = null;
+    let isSendingPassage = false;
+    let passageClickGuardUntil = 0;
+    let lastEquipeButtonsSignature = "";
+    let lastEquipesStateSignature = "";
+    let observerGeoAccessAllowed = false;
+
+    function teamClickAllowed() {
+      return Date.now() >= passageClickGuardUntil;
+    }
+
+    function blockTeamClicks(ms = 1000) {
+      passageClickGuardUntil = Date.now() + ms;
+    }
+
+    function setLoading(element, isLoading) {
+      if (!element) return;
+      element.classList.add('with-loading');
+      element.classList.toggle('loading', Boolean(isLoading));
+      element.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+    }
+
+    async function withLoading(element, fn) {
+      setLoading(element, true);
+      try {
+        return await fn();
+      } finally {
+        setLoading(element, false);
+      }
+    }
+
+    function setTeamButtonsSendingState(isSending, activeEquipe = null) {
+      const buttons = document.querySelectorAll('#boutons-equipes button');
+      buttons.forEach(btn => {
+        const isActive = activeEquipe && btn.dataset.equipe === activeEquipe;
+        btn.disabled = isSending;
+        setLoading(btn, Boolean(isSending && isActive));
+      });
+    }
 
     // Fonction pour mettre à jour l'indicateur de qualité GPS
     function updateGPSQualityIndicator(accuracy, error = null) {
@@ -1024,7 +1097,7 @@
 
     let ws;
 
-    function connecter() {
+    async function connecter() {
       const input = document.getElementById("observateur");
       const nom = input.value.trim();
       if (!nom) {
@@ -1036,7 +1109,17 @@
       document.getElementById("nom-affiche").textContent = nomObservateur;
       document.getElementById("login").classList.add("hidden");
       document.getElementById("interface").classList.remove("hidden");
+      document.getElementById("boutons-equipes").textContent = "Vérification géographique...";
+      document.getElementById("derniers").textContent = "Vérification géographique...";
+
+      const geoAllowed = await requireGeoAccessForObserver();
+      if (!geoAllowed) {
+        showGeoAccessBlockedState();
+        return;
+      }
+
       document.getElementById("boutons-equipes").textContent = "Chargement...";
+      document.getElementById("derniers").textContent = "Chargement...";
 
       // Initialiser la carte immédiatement (position par défaut)
       initMap();
@@ -1061,7 +1144,7 @@
       if (refreshInterval) clearInterval(refreshInterval);
       refreshInterval = setInterval(async () => {
         await chargerEquipesDepuisAPI();
-      }, 1000);
+      }, 1500);
     }
 
     function changerObservateur() {
@@ -1073,6 +1156,13 @@
     async function chargerEquipes() {
       try {
         toutesEquipes = await fetchWithRetry(`${api}/equipes`);
+        lastEquipesStateSignature = JSON.stringify((toutesEquipes || []).map(eq => ({
+          nom: eq.nom,
+          etat: eq.etat || "",
+          couleur: eq.couleur || "",
+          latitude: eq.latitude ?? null,
+          longitude: eq.longitude ?? null
+        })));
         afficherBoutonsEquipes();
       } catch(e) {
         console.error("Erreur chargement équipes:", e);
@@ -1110,8 +1200,21 @@
         
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const equipes = await res.json();
+
+        const newEquipesStateSignature = JSON.stringify((equipes || []).map(eq => ({
+          nom: eq.nom,
+          etat: eq.etat || "",
+          couleur: eq.couleur || "",
+          latitude: eq.latitude ?? null,
+          longitude: eq.longitude ?? null
+        })));
+
+        if (newEquipesStateSignature === lastEquipesStateSignature) {
+          return;
+        }
         
         toutesEquipes = equipes;
+        lastEquipesStateSignature = newEquipesStateSignature;
         
         // Mise à jour immédiate de l'interface
         afficherBoutonsEquipes();
@@ -1157,6 +1260,18 @@
     function afficherBoutonsEquipes() {
       const container = document.getElementById("boutons-equipes");
       const dispo = equipesDisponibles();
+
+      const currentSignature = JSON.stringify(dispo.map(eq => ({
+        nom: eq.nom,
+        etat: eq.etat || "roule",
+        couleur: eq.couleur || "#3498db"
+      })));
+
+      if (currentSignature === lastEquipeButtonsSignature) {
+        return;
+      }
+
+      lastEquipeButtonsSignature = currentSignature;
       
       if (dispo.length === 0) {
         const equipesNonParties = toutesEquipes.filter(eq => eq.etat === "non partie");
@@ -1201,8 +1316,9 @@
 
         btn.onclick = (e) => {
           e.preventDefault();
+          if (!teamClickAllowed()) return;
           if (btn.disabled || btn.classList.contains('loading')) return;
-          envoyerPassage(eq.nom, btn);
+          withLoading(btn, async () => envoyerPassage(eq.nom, btn));
         };
         fragment.appendChild(btn);
       });
@@ -1210,6 +1326,10 @@
       // Ajout en une seule opération
       container.innerHTML = "";
       container.appendChild(fragment);
+
+      if (document.activeElement && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
     }
 
     // Convertir hex en RGB
@@ -1232,17 +1352,115 @@
       return luminance > 186;
     }
 
+    async function readApiError(response, fallback) {
+      try {
+        const data = await response.json();
+        return data.detail || data.message || fallback;
+      } catch (e) {
+        try {
+          const text = await response.text();
+          return text || fallback;
+        } catch (err) {
+          return fallback;
+        }
+      }
+    }
+
+    function getCurrentPositionOnce() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error("Géolocalisation non supportée sur cet appareil."));
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 30000
+        });
+      });
+    }
+
+    async function checkGeoAccess(latitude, longitude, accuracy) {
+      const response = await fetch(`${api}/geo_access`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ latitude, longitude, accuracy })
+      });
+
+      if (!response.ok) {
+        return {
+          allowed: false,
+          message: await readApiError(response, "Vérification géographique impossible.")
+        };
+      }
+
+      return response.json();
+    }
+
+    async function requireGeoAccessForObserver() {
+      try {
+        const adminCheck = await checkGeoAccess(null, null, null);
+        if (adminCheck.allowed) {
+          observerGeoAccessAllowed = true;
+          return true;
+        }
+
+        const position = await getCurrentPositionOnce();
+        positionActuelle = {
+          lat: position.coords.latitude,
+          lon: position.coords.longitude
+        };
+        updateGPSQualityIndicator(position.coords.accuracy);
+
+        const access = await checkGeoAccess(
+          position.coords.latitude,
+          position.coords.longitude,
+          position.coords.accuracy
+        );
+
+        observerGeoAccessAllowed = Boolean(access.allowed);
+        if (!observerGeoAccessAllowed) {
+          afficherMessage("❌ " + (access.message || "Accès refusé : vous êtes trop loin de la trace GPX active."), 0);
+        }
+        return observerGeoAccessAllowed;
+      } catch (error) {
+        observerGeoAccessAllowed = false;
+        console.error("Erreur vérification géographique:", error);
+        afficherMessage("❌ Position GPS requise pour utiliser cette page, sauf connexion admin.", 0);
+        return false;
+      }
+    }
+
+    function showGeoAccessBlockedState() {
+      const teams = document.getElementById("boutons-equipes");
+      const latest = document.getElementById("derniers");
+
+      if (teams) {
+        teams.innerHTML = "";
+        teams.textContent = "Accès refusé : équipes masquées hors zone autorisée.";
+      }
+
+      if (latest) {
+        latest.innerHTML = "";
+        latest.textContent = "Accès refusé : derniers passages masqués hors zone autorisée.";
+      }
+    }
+
     async function envoyerPassage(equipe, btnElement) {
+      blockTeamClicks(1500);
+
+      if (isSendingPassage) {
+        return;
+      }
+
       if (!navigator.geolocation) {
         afficherMessage("❌ Géolocalisation non supportée");
         return;
       }
 
-      // Désactiver le bouton et ajouter l'état loading
-      if (btnElement) {
-        btnElement.disabled = true;
-        btnElement.classList.add('loading');
-      }
+      isSendingPassage = true;
+      setTeamButtonsSendingState(true, equipe);
 
       // Si on a déjà une position récente (de userMarker), l'utiliser directement
       if (userMarker) {
@@ -1268,10 +1486,8 @@
         if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) {
           console.error("Coordonnées GPS invalides:", lat, lon);
           afficherMessage("❌ Coordonnées GPS invalides");
-          if (btnElement) {
-            btnElement.disabled = false;
-            btnElement.classList.remove('loading');
-          }
+          isSendingPassage = false;
+          setTeamButtonsSendingState(false);
           return;
         }
         
@@ -1287,12 +1503,9 @@
           default: msg += err.message;
         }
         afficherMessage(msg);
-        
-        // Réactiver le bouton en cas d'erreur
-        if (btnElement) {
-          btnElement.disabled = false;
-          btnElement.classList.remove('loading');
-        }
+
+        isSendingPassage = false;
+        setTeamButtonsSendingState(false);
       }, {
         enableHighAccuracy: true,
         timeout: 20000,
@@ -1309,10 +1522,8 @@
           isNaN(latitude) || isNaN(longitude)) {
         console.error("Coordonnées invalides:", latitude, longitude);
         afficherMessage("❌ Coordonnées GPS invalides");
-        if (btnElement) {
-          btnElement.disabled = false;
-          btnElement.classList.remove('loading');
-        }
+        isSendingPassage = false;
+        setTeamButtonsSendingState(false);
         return;
       }
       
@@ -1349,9 +1560,9 @@
         console.log("Réponse passage:", passageRes.status);
 
         if (!passageRes.ok) {
-          const errorText = await passageRes.text();
+          const errorText = await readApiError(passageRes, "Erreur enregistrement");
           console.error("Erreur HTTP:", passageRes.status, errorText);
-          throw new Error(`HTTP ${passageRes.status}: ${errorText}`);
+          throw new Error(errorText);
         }
 
         const passageData = await passageRes.json();
@@ -1401,12 +1612,6 @@
         // Recharger depuis l'API pour forcer la synchronisation
         await chargerEquipesDepuisAPI();
         
-        // Réactiver le bouton après succès (au cas où il ne serait pas retiré)
-        if (btnElement) {
-          btnElement.disabled = false;
-          btnElement.classList.remove('loading');
-        }
-        
         // Le WebSocket mettra à jour l'interface automatiquement aussi
         
       } catch(e) {
@@ -1416,12 +1621,11 @@
         if (eq && oldEtat !== null) {
           eq.etat = oldEtat;
         }
-        
-        // Réactiver le bouton en cas d'erreur
-        if (btnElement) {
-          btnElement.disabled = false;
-          btnElement.classList.remove('loading');
-        }
+      } finally {
+        // Évite un clic fantôme sur un autre bouton juste après le rerender.
+        blockTeamClicks(700);
+        isSendingPassage = false;
+        setTeamButtonsSendingState(false);
       }
     }
 

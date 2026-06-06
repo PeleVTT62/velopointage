@@ -5,11 +5,26 @@
 .env.github-minimal
 .env.multi-route
 
+#Readme inutiles
+ADMIN_ARCHIVAGE.md
+CHANGELOG_PWA.md
+DEPANNGE_502.md
+GUIDE_ARCHIVAGE.md
+deploy/dev
+deploy/prod
+INDEX_ARCHIVAGE.md
+RECAPITULATIF_ARCHIVAGE.md
+RESUME_SOLUTION.md
+TECHNICAL_PWA.md
+UPDATE_PROCESS.md
+
 # Base de données
 data/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+check_archives.sql
+
 
 # Python
 __pycache__/
@@ -35,6 +50,9 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+bump_version.py
+deploy.sh
+
 
 # IDE
 .vscode/

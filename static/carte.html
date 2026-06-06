@@ -761,6 +761,95 @@
   
   // Charger le cache au démarrage
   loadCityCache();
+
+  function showGeoAccessDenied(message) {
+    const mapEl = document.getElementById('map');
+    if (!mapEl) return;
+
+    let overlay = document.getElementById('geo-access-denied');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'geo-access-denied';
+      overlay.style.cssText = [
+        'position:absolute',
+        'inset:0',
+        'z-index:1200',
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
+        'padding:1.5rem',
+        'background:rgba(255,255,255,0.94)',
+        'text-align:center',
+        'font:600 1rem system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+        'color:#c0392b'
+      ].join(';');
+      mapEl.style.position = mapEl.style.position || 'relative';
+      mapEl.appendChild(overlay);
+    }
+
+    overlay.textContent = message;
+  }
+
+  function getCurrentPositionOnce() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Géolocalisation non supportée sur cet appareil.'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 30000
+      });
+    });
+  }
+
+  async function checkGeoAccess(latitude, longitude, accuracy) {
+    const response = await fetch(`${apiBase}/geo_access`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        latitude,
+        longitude,
+        accuracy
+      })
+    });
+
+    if (!response.ok) {
+      return {
+        allowed: false,
+        message: 'Vérification géographique impossible.'
+      };
+    }
+
+    return response.json();
+  }
+
+  async function requireGeoAccessForMap() {
+    try {
+      const adminCheck = await checkGeoAccess(null, null, null);
+      if (adminCheck.allowed) return true;
+
+      const position = await getCurrentPositionOnce();
+      const access = await checkGeoAccess(
+        position.coords.latitude,
+        position.coords.longitude,
+        position.coords.accuracy
+      );
+
+      if (!access.allowed) {
+        showGeoAccessDenied(access.message || 'Accès refusé : vous êtes trop loin de la trace GPX active.');
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erreur vérification géographique:', error);
+      showGeoAccessDenied('Position GPS requise pour consulter la carte, sauf connexion admin.');
+      return false;
+    }
+  }
   
   // Initialisation de la carte avec gestion d'erreur
   let map;
@@ -847,9 +936,6 @@ async function loadActiveGPX() {
     console.error(e);
   }
 }
-
-// Charger le GPX actif au démarrage
-loadActiveGPX();
 
 // Fonction de throttling
 function throttle(func, delay) {
@@ -2009,10 +2095,24 @@ function refreshSummaryTable(summary) {
   // On s'assure que toutes les équipes sont dans le summary
   const summaryComplet = Object.keys(state.equipesCouleurs).map(nom => {
     const s = summary.find(e => e.equipe === nom) || {};
-    // Priorité : ville du last_passage (qui contient maintenant la ville de la table equipes)
+    // Priorité ville:
+    // 1) summary.last_passage.ville
+    // 2) dernier passage connu en mémoire
+    // 3) cache geocoding local à partir des coords
+    // 4) '-'
     let ville = '-';
     if (s.last_passage && s.last_passage.ville) {
       ville = s.last_passage.ville;
+    } else {
+      const lastPassageEquipe = state.passagesGlobal.find(p => p.equipe === nom && p.ville);
+      if (lastPassageEquipe && lastPassageEquipe.ville) {
+        ville = lastPassageEquipe.ville;
+      } else if (s.last_passage && s.last_passage.latitude != null && s.last_passage.longitude != null) {
+        const key = `${Number(s.last_passage.latitude).toFixed(5)},${Number(s.last_passage.longitude).toFixed(5)}`;
+        if (state.cityCache[key]) {
+          ville = state.cityCache[key];
+        }
+      }
     }
     
     return {
@@ -2238,6 +2338,14 @@ let gpxStartPoint = null;
     console.log('🚀 Démarrage chargement initial...');
     
     try {
+      const geoAllowed = await requireGeoAccessForMap();
+      if (!geoAllowed) {
+        console.warn('Accès carte bloqué par la sécurité géographique');
+        return;
+      }
+
+      await loadActiveGPX();
+
       // Charger équipes, passages et summary en parallèle
       const [equipes, passages, summary] = await Promise.all([
         chargerEquipesCouleurs(),

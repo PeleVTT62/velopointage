@@ -14,7 +14,7 @@ APP_PORT=""
 
 usage() {
   cat <<'EOF'
-Installation rapide Velopointage (mode GitHub, 1 route)
+Installation rapide Velopointage
 
 Usage:
   ./deploy/github/install.sh [options]

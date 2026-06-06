@@ -4,11 +4,11 @@
 
 Le système PéléVTT 62 propose deux applications installables séparément :
 
-### 1. 🎯 Application Organisateurs
+### 1. 🎯 Application TTV
 
 **URL d'accès** : `https://votre-domaine.com/static/index.html`
 
-**Pour qui** : Organisateurs, coordinateurs, observateurs
+**Pour qui** : TTV, coordinateurs, observateurs
 
 **Fonctionnalités** :
 - ✅ Carte en temps réel avec toutes les équipes
@@ -25,11 +25,11 @@ Le système PéléVTT 62 propose deux applications installables séparément :
 
 ---
 
-### 2. 🚴 Application Animateurs
+### 2. 🚴 Application anim
 
 **URL d'accès** : `https://votre-domaine.com/static/anim.html`
 
-**Pour qui** : Animateurs d'équipes sur le terrain
+**Pour qui** : anim d'équipes sur le terrain
 
 **Fonctionnalités** :
 - ✅ Sélection de son équipe
@@ -59,18 +59,18 @@ Les deux applications se mettent à jour automatiquement :
 
 ## 💡 Conseils d'utilisation
 
-### Pour les organisateurs
+### Pour les TTV
 
-1. Installer l'**Application Organisateurs** sur votre téléphone/tablette
+1. Installer l'**Application TTV** sur votre téléphone/tablette
 2. L'utiliser pour :
    - Suivre toutes les équipes en temps réel
    - Configurer les traces GPX
    - Gérer les équipes et couleurs
    - Enregistrer des passages manuellement si besoin
 
-### Pour les animateurs
+### Pour les anim
 
-1. Installer l'**Application Animateurs** sur votre téléphone
+1. Installer l'**Application anim** sur votre téléphone
 2. Au premier lancement :
    - Entrer votre nom
    - Sélectionner votre équipe
@@ -98,7 +98,7 @@ Les deux applications fonctionnent en mode hors ligne :
 ## ❓ FAQ
 
 ### Peut-on installer les deux applications ?
-Oui ! Elles sont complètement indépendantes. Un organisateur peut avoir les deux sur son téléphone.
+Oui ! Elles sont complètement indépendantes. Un TTV peut avoir les deux sur son téléphone.
 
 ### Comment différencier les deux applications ?
 - Les noms sont différents : "PéléVTT 62" vs "Anim PéléVTT 62"
@@ -125,8 +125,8 @@ Les deux applications sont servies automatiquement par le même serveur. Aucune 
 ### URLs à partager
 
 Créez des QR codes ou des liens directs :
-- Organisateurs : `https://votre-domaine.com/static/index.html`
-- Animateurs : `https://votre-domaine.com/static/anim.html`
+- TTV : `https://votre-domaine.com/static/index.html`
+- anim : `https://votre-domaine.com/static/anim.html`
 
 ### Forcer la mise à jour
 

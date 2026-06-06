@@ -8,14 +8,14 @@ Votre système PéléVTT 62 dispose maintenant de **deux applications PWA** avec
 
 ## 🎯 Les Deux Applications
 
-### 1. Application Organisateurs
+### 1. Application TTV
 - **Accès** : `/static/index.html`
-- **Pour** : Coordinateurs, organisateurs, observateurs
+- **Pour** : Coordinateurs, TTV, observateurs
 - **Fonctions** : Carte complète, configuration, suivi de toutes les équipes
 
-### 2. Application Animateurs  
+### 2. Application anim  
 - **Accès** : `/static/anim.html`
-- **Pour** : Animateurs d'équipes sur le terrain
+- **Pour** : anim d'équipes sur le terrain
 - **Fonctions** : Déclaration d'état, assistance, GPS automatique
 
 **Les deux partagent le même Service Worker** = une seule mise à jour suffit pour tout !

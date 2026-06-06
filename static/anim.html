@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PéléVTT 62 - Animateur</title>
+  <title>PéléVTT 62 - anim</title>
   
   <!-- Manifest PWA -->
   <link rel="manifest" href="/site_anim.webmanifest">
@@ -603,7 +603,7 @@
   <div class="container">
     <!-- Header -->
     <div class="header">
-      <h1><span class="title-icon">🚴‍♂️</span><span class="title-text">Animateur</span></h1>
+      <h1><span class="title-icon">🚴‍♂️</span><span class="title-text">anim</span></h1>
       <p class="subtitle">Suivi et gestion de votre équipe</p>
     </div>
 
@@ -1131,6 +1131,20 @@
       // Suppression du repli automatique ici
     }
 
+    async function readApiError(response, fallback) {
+      try {
+        const data = await response.json();
+        return data.detail || data.message || fallback;
+      } catch (e) {
+        try {
+          const text = await response.text();
+          return text || fallback;
+        } catch (err) {
+          return fallback;
+        }
+      }
+    }
+
     // Déclarer un état
     async function declareState(state) {
       if (!validateBeforeAction()) return;
@@ -1160,7 +1174,7 @@
           body: JSON.stringify({
             equipe_id: app.teamId,
             etat: state,
-            animateur: app.animName,
+            anim: app.animName,
             position: app.position,
             timestamp: new Date().toISOString()
           })
@@ -1182,11 +1196,11 @@
           
           showToast(`${stateIcons[state]} État "${stateNames[state]}" déclaré avec succès`, 'success');
         } else {
-          throw new Error('Erreur serveur');
+          throw new Error(await readApiError(response, 'Erreur lors de la déclaration'));
         }
       } catch (error) {
         console.error('Erreur déclaration état:', error);
-        showToast('Erreur lors de la déclaration', 'error');
+        showToast(error.message || 'Erreur lors de la déclaration', 'error');
       }
     }
 
@@ -1228,7 +1242,7 @@
       const assistanceType = type === 'velo' ? 'ASSISTANCE VÉLO' : 'ASSISTANCE MÉDICALE';
       
       // Message SMS
-      const message = `🆘 ${assistanceType}\nAnimateur: ${app.animName}\nÉquipe: ${app.teamName}\nPosition: ${mapsLink}`;
+      const message = `🆘 ${assistanceType}\nanim: ${app.animName}\nÉquipe: ${app.teamName}\nPosition: ${mapsLink}`;
       
       // Créer l'URI SMS (format iOS et Android)
       // iOS utilise & pour séparer le numéro et le body, Android utilise ?
@@ -1246,7 +1260,7 @@
           body: JSON.stringify({
             type: type,
             equipe_id: app.teamId,
-            animateur: app.animName,
+            anim: app.animName,
             position: app.position,
             timestamp: new Date().toISOString()
           })

@@ -1,6 +1,6 @@
 # 📱 Guide Rapide - Installation sur Mobile
 
-## Pour les Organisateurs 🎯
+## Pour les TTV 🎯
 
 ### Étape 1 : Accéder à l'application
 Ouvrez cette URL dans votre navigateur :
@@ -27,7 +27,7 @@ https://votre-domaine.com/static/index.html
 
 ---
 
-## Pour les Animateurs 🚴
+## Pour les anim 🚴
 
 ### Étape 1 : Accéder à l'application
 Ouvrez cette URL dans votre navigateur :
@@ -88,7 +88,7 @@ Les applications se mettent à jour automatiquement :
 1. Vérifiez votre connexion Internet
 2. Vérifiez que le GPS est activé
 3. Fermez et rouvrez l'application
-4. Si le problème persiste, contactez les organisateurs
+4. Si le problème persiste, contactez les TTV
 
 ---
 
@@ -104,14 +104,14 @@ Oui, l'interface reste disponible. Les données seront synchronisées quand vous
 Non. Déclarez juste l'état de votre équipe aux moments clés. L'application peut rester en arrière-plan.
 
 **Puis-je avoir les deux applications ?**
-Oui ! Elles sont indépendantes. Un organisateur peut avoir les deux.
+Oui ! Elles sont indépendantes. Un TTV peut avoir les deux.
 
 ---
 
 ## 📞 Support
 
 En cas de problème, contactez :
-- Les organisateurs du PéléVTT 62
+- Les TTV du PéléVTT 62
 - L'équipe technique sur place
 
 Bon pèlerinage ! 🚴‍♂️🚴‍♀️

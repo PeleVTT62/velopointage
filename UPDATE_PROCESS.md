@@ -8,13 +8,13 @@ L'application PWA utilise le cache du Service Worker, ce qui empêchait les mise
 
 Le système comporte **deux applications PWA distinctes** :
 
-1. **Application Organisateurs** ([static/index.html](static/index.html))
-   - Interface complète pour les organisateurs
+1. **Application TTV** ([static/index.html](static/index.html))
+   - Interface complète pour les TTV
    - Accès à la carte, configuration, observateurs
    - Manifest : [site.webmanifest](site.webmanifest)
 
-2. **Application Animateurs** ([static/anim.html](static/anim.html))
-   - Interface simplifiée pour les animateurs d'équipes
+2. **Application anim** ([static/anim.html](static/anim.html))
+   - Interface simplifiée pour les anim d'équipes
    - Déclaration d'états, demandes d'assistance
    - Manifest : [site_anim.webmanifest](site_anim.webmanifest)
 
@@ -69,13 +69,13 @@ git push
 ## ⚡ Comment ça fonctionne
 
 1. **Vous déployez** une nouvelle version avec un numéro de cache incrémenté
-2. **Les utilisateurs ouvrent** l'application (organisateurs ou animateurs, ou après 1h si déjà ouverte)
+2. **Les utilisateurs ouvrent** l'application (TTV ou anim, ou après 1h si déjà ouverte)
 3. **Le Service Worker** détecte que la version a changé
 4. **L'application affiche** "Nouvelle version disponible ! Rechargement dans 3s..."
 5. **L'application se recharge** automatiquement et utilise la nouvelle version
 6. **L'ancien cache** est supprimé automatiquement
 
-💡 **Les deux applications** (organisateurs et animateurs) se mettent à jour automatiquement car elles partagent le même Service Worker.
+💡 **Les deux applications** (TTV et anim) se mettent à jour automatiquement car elles partagent le même Service Worker.
 
 ## 🎯 Bonnes pratiques
 
@@ -113,7 +113,7 @@ Ouvrir la console développeur (sur ordinateur) :
 
 ## 📱 Comportement sur mobile
 
-- **iOS (Safari)** : Le Service Worker vérifie les mises à jour quand l'app est ouverte (organisateurs ou animateurs)
+- **iOS (Safari)** : Le Service Worker vérifie les mises à jour quand l'app est ouverte (TTV ou anim)
 - **Android (Chrome)** : Vérification au lancement + toutes les heures
 - **Mode hors ligne** : L'ancienne version reste disponible jusqu'à ce que l'appareil soit en ligne
 - **Installation séparée** : Les utilisateurs peuvent installer les deux applications comme des apps distinctes sur leur téléphone

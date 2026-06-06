@@ -9,8 +9,8 @@ Le système utilise **un seul Service Worker** ([static/sw.js](static/sw.js)) qu
 ```
 Service Worker (sw.js)
     ├─ Cache: pelevtt-v1.0.3
-    │   ├─ /static/index.html (App Organisateurs)
-    │   ├─ /static/anim.html (App Animateurs)
+    │   ├─ /static/index.html (App TTV)
+    │   ├─ /static/anim.html (App anim)
     │   ├─ CSS communs
     │   └─ JS communs
     └─ Cache API: pelevtt-api-v1.0.3
@@ -21,12 +21,12 @@ Service Worker (sw.js)
 
 ### Deux manifests distincts
 
-- **site.webmanifest** : App Organisateurs
+- **site.webmanifest** : App TTV
   - `start_url`: `/?utm_source=homescreen`
   - `scope`: `/`
   - `name`: "PéléVTT 62"
 
-- **site_anim.webmanifest** : App Animateurs
+- **site_anim.webmanifest** : App anim
   - `start_url`: `/static/anim.html?source=pwa`
   - `scope`: `/static/`
   - `name`: "Anim PéléVTT 62"

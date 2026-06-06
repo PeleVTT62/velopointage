@@ -20,7 +20,7 @@ Application web pour le suivi en temps réel des équipes de cyclistes lors d'é
 ✅ Reverse geocoding (ville au point de passage)
 ✅ Authentification simple pour opérations sensibles
 ✅ Responsive mobile
-✅ **Deux applications PWA installables** (organisateurs + animateurs)
+✅ **Deux applications PWA installables** (TTV + anim)
 ✅ **Mises à jour automatiques** du cache
 
 📱 **Voir [GUIDE_INSTALLATION.md](GUIDE_INSTALLATION.md) pour installer les applications sur mobile**
@@ -215,8 +215,8 @@ Client (mobile/desktop)
 
 L'application fonctionne en mode PWA (Progressive Web App) avec **deux interfaces distinctes** :
 
-1. **Application Organisateurs** (`/static/index.html`) - Interface complète
-2. **Application Animateurs** (`/static/anim.html`) - Interface simplifiée
+1. **Application TTV** (`/static/index.html`) - Interface complète
+2. **Application anim** (`/static/anim.html`) - Interface simplifiée
 
 Les deux applications peuvent être installées séparément sur iOS/Android et partagent le même système de mise à jour.
 

@@ -25,7 +25,7 @@ Cette checklist est conçue pour une mise en service professionnelle sur tout se
 
 ## 4. Vérifications fonctionnelles
 
-- Connexion interface organisateur
+- Connexion interface TTV
 - Changement du mot de passe admin (obligatoire)
 - Affichage des équipes par défaut
 - Import d’un GPX test

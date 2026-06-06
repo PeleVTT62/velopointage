@@ -333,6 +333,8 @@
       border: 3px solid transparent;
       border-radius: 12px;
       cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
       transition: all 0.3s ease;
       text-align: center;
       background: white;
@@ -558,6 +560,41 @@
 
     .assistance-button:active {
       transform: translateY(0);
+    }
+
+    /* Loading harmonisé avec la page observateur */
+    .with-loading.loading {
+      position: relative;
+      pointer-events: none;
+      color: transparent !important;
+    }
+
+    .with-loading.loading > * {
+      visibility: hidden;
+    }
+
+    .with-loading.loading::after {
+      content: '⏳';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.4rem;
+      line-height: 1;
+      color: white;
+      visibility: visible;
+      animation: spin 1s linear infinite;
+      z-index: 2;
+    }
+
+    .team-card.with-loading.loading::after,
+    .assistance-button.with-loading.loading::after {
+      color: var(--text-primary);
+    }
+
+    @keyframes spin {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to { transform: translate(-50%, -50%) rotate(360deg); }
     }
 
     /* Historique */
@@ -803,14 +840,14 @@
     <h1>État de l'équipe</h1>
 
     <div id="login">
-      <label for="observateur">Prénom de l'organisateur :</label>
-      <input type="text" id="observateur" placeholder="Organisateur" autocomplete="off" />
+      <label for="observateur">Prénom de l'TTV :</label>
+      <input type="text" id="observateur" placeholder="TTV" autocomplete="off" />
       <button id="btn-connecter">Se connecter</button>
     </div>
 
     <div id="interface" class="hidden">
       <div class="header-observateur">
-        <div>Organisateur : <strong><span id="nom-affiche"></span></strong></div>
+        <div>TTV : <strong><span id="nom-affiche"></span></strong></div>
         <div class="gps-indicator searching" id="gps-indicator">
           <span>📡</span>
           <span id="gps-quality">Recherche GPS...</span>
@@ -899,6 +936,25 @@
     let currentPosition = null;
     let allTeams = [];
 
+    function setLoading(element, isLoading) {
+      if (!element) return;
+      element.classList.add('with-loading');
+      element.classList.toggle('loading', isLoading);
+      if (element.tagName === 'BUTTON') {
+        element.disabled = Boolean(isLoading);
+      }
+      element.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+    }
+
+    async function withLoading(element, fn) {
+      setLoading(element, true);
+      try {
+        return await fn();
+      } finally {
+        setLoading(element, false);
+      }
+    }
+
     // ===== GESTION GPS =====
     function startGPSTracking() {
       if (!navigator.geolocation) {
@@ -941,6 +997,20 @@
       qualityText.textContent = text;
     }
 
+    async function readApiError(response, fallback) {
+      try {
+        const data = await response.json();
+        return data.detail || data.message || fallback;
+      } catch (e) {
+        try {
+          const text = await response.text();
+          return text || fallback;
+        } catch (err) {
+          return fallback;
+        }
+      }
+    }
+
     function stopGPSTracking() {
       if (gpsWatchId !== null) {
         navigator.geolocation.clearWatch(gpsWatchId);
@@ -949,21 +1019,23 @@
     }
 
     // ===== AUTHENTIFICATION =====
-    function connectUser(nom) {
+    async function connectUser(nom) {
       currentObservateur = nom;
       localStorage.setItem('observateur', nom);
       document.getElementById('nom-affiche').textContent = nom;
       document.getElementById('login').classList.add('hidden');
       document.getElementById('interface').classList.remove('hidden');
       startGPSTracking();
-      loadTeams();
+      await loadTeams();
     }
     
     const btnConnecter = document.getElementById('btn-connecter');
     if (btnConnecter) {
-      btnConnecter.addEventListener('click', () => {
+      btnConnecter.addEventListener('click', async () => {
         const nom = document.getElementById('observateur').value.trim();
-        if (nom) connectUser(nom);
+        if (nom) {
+          await withLoading(btnConnecter, async () => connectUser(nom));
+        }
       });
     }
 
@@ -1028,10 +1100,6 @@
             <div class="team-card-name">${teamName}</div>
           `;
           
-          card.addEventListener('click', () => {
-            console.log('👆 Clic sur équipe - ID:', teamId);
-            selectTeam(teamId, teamName);
-          });
           grid.appendChild(card);
         });
         console.log('✅ Cards créées dans le DOM');
@@ -1147,7 +1215,7 @@
         const teamId = teamCard.dataset.id;
         const teamName = teamCard.dataset.nom;
         console.log('🎯 Team card cliquée - ID:', teamId, 'Nom:', teamName);
-        selectTeam(teamId, teamName);
+        withLoading(teamCard, async () => selectTeam(teamId, teamName));
         return;
       }
       
@@ -1156,7 +1224,7 @@
       if (stateButton) {
         const newState = stateButton.dataset.state;
         console.log('🎯 Bouton état cliqué:', newState);
-        changeState(newState);
+        withLoading(stateButton, async () => changeState(newState, stateButton));
         return;
       }
       
@@ -1166,7 +1234,7 @@
         const type = assistanceButton.dataset.assistance;
         console.log('🆘 Bouton assistance cliqué:', type);
         if (confirm(`Confirmer : ${assistanceButton.textContent.trim()} ?`)) {
-          requestAssistance(type);
+          withLoading(assistanceButton, async () => requestAssistance(type, assistanceButton));
         }
         return;
       }
@@ -1174,21 +1242,22 @@
 
     async function changeState(newState) {
       if (!currentTeamId) return;
+      if (!currentPosition) {
+        showToast('Position GPS requise pour changer l’état', 'error');
+        return;
+      }
 
       const data = {
         equipe_id: currentTeamId,
         etat: newState,
-        animateur: currentObservateur,
-        timestamp: new Date().toISOString()
-      };
-
-      if (currentPosition) {
-        data.position = {
+        anim: currentObservateur,
+        timestamp: new Date().toISOString(),
+        position: {
           lat: currentPosition.coords.latitude,
           lng: currentPosition.coords.longitude,
           accuracy: currentPosition.coords.accuracy
-        };
-      }
+        }
+      };
 
       try {
         const response = await fetch('/api/equipes/etat', {
@@ -1198,9 +1267,9 @@
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = await readApiError(response, 'Erreur changement état');
           console.error('Erreur serveur:', response.status, errorText);
-          throw new Error('Erreur changement état');
+          throw new Error(errorText);
         }
 
         showToast(`État changé : ${formatStateName(newState)}`, 'success');
@@ -1225,7 +1294,7 @@
         }
       } catch (error) {
         console.error('Erreur:', error);
-        showToast('Erreur changement état', 'error');
+        showToast(error.message || 'Erreur changement état', 'error');
       }
     }
 
@@ -1235,7 +1304,7 @@
 
       const data = {
         type: type,
-        organisateur: currentObservateur,
+        TTV: currentObservateur,
         equipe_nom: currentTeamId  // Envoyer le nom de l'équipe
       };
 

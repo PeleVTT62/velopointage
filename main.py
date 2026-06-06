@@ -49,6 +49,7 @@ REDIS_CHANNEL = os.getenv("REDIS_CHANNEL", f"passages:{ROUTE_SLUG}")
 ADMIN_KEY = os.getenv("ADMIN_KEY", "0d803d527bf79cb747aeb51c42c15ad017e0d9f7fb3cbb7b6afa90b952e4fb4f")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "https://api.pelevtt.cloud:443,http://pelevtt.cloud").split(",")
 REDIS_ENABLED = os.getenv("REDIS_ENABLED", "true").lower() == "true"
+GEO_SECURITY_RADIUS_KM = float(os.getenv("GEO_SECURITY_RADIUS_KM", "100"))
 
 DATA_DIR = os.getenv("DATA_DIR", "data")
 STATIC_DIR = os.getenv("STATIC_DIR", "static")
@@ -332,6 +333,11 @@ def require_auth(session_token: Optional[str] = Cookie(None, alias="config_sessi
             headers={"WWW-Authenticate": "Bearer"},
         )
     return session_token
+
+
+def is_admin_session(session_token: Optional[str]) -> bool:
+    """Indique si le cookie de session admin est valide, sans rendre l'auth obligatoire."""
+    return verify_session(session_token)
 
 # -----------------------------------
 # Database helpers
@@ -757,6 +763,66 @@ def nearest_point_distance_along_track(
     dist_to_end = gpx_cumdist[-1] - dist_from_start
     return dist_from_start, dist_to_end, best_i
 
+
+def distance_to_gpx_track_km(lat: float, lon: float) -> Optional[float]:
+    """Distance minimale entre une position et la trace GPX active."""
+    if not gpx_track_points:
+        return None
+    return min(haversine_km(lat, lon, plat, plon) for plat, plon in gpx_track_points)
+
+
+def geo_access_payload(lat: Optional[float], lon: Optional[float], admin_bypass: bool = False) -> Dict[str, Any]:
+    """Construit le résultat d'autorisation géographique."""
+    if admin_bypass:
+        return {
+            "allowed": True,
+            "admin_bypass": True,
+            "radius_km": GEO_SECURITY_RADIUS_KM,
+            "distance_km": None,
+            "message": "Accès autorisé via session admin.",
+        }
+
+    if lat is None or lon is None:
+        return {
+            "allowed": False,
+            "admin_bypass": False,
+            "radius_km": GEO_SECURITY_RADIUS_KM,
+            "distance_km": None,
+            "message": "Position GPS requise pour vérifier l'accès.",
+        }
+
+    distance_km = distance_to_gpx_track_km(lat, lon)
+    if distance_km is None:
+        return {
+            "allowed": False,
+            "admin_bypass": False,
+            "radius_km": GEO_SECURITY_RADIUS_KM,
+            "distance_km": None,
+            "message": "Trace GPX active introuvable, vérification géographique impossible.",
+        }
+
+    allowed = distance_km <= GEO_SECURITY_RADIUS_KM
+    return {
+        "allowed": allowed,
+        "admin_bypass": False,
+        "radius_km": GEO_SECURITY_RADIUS_KM,
+        "distance_km": round(distance_km, 2),
+        "message": (
+            "Position autorisée."
+            if allowed
+            else f"Accès refusé : vous êtes à {distance_km:.1f} km de la trace GPX active. Limite : {GEO_SECURITY_RADIUS_KM:.0f} km."
+        ),
+    }
+
+
+def enforce_geo_access(lat: Optional[float], lon: Optional[float], session_token: Optional[str]) -> Dict[str, Any]:
+    """Bloque l'action si la position est hors du rayon autorisé, sauf admin connecté."""
+    payload = geo_access_payload(lat, lon, admin_bypass=is_admin_session(session_token))
+    if not payload["allowed"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=payload["message"])
+    return payload
+
+
 def ensure_gpx_dir():
     if not os.path.exists(GPX_DIR):
         os.makedirs(GPX_DIR, exist_ok=True)
@@ -783,6 +849,12 @@ class Passage(BaseModel):
     latitude: float
     longitude: float
     observateur: str
+
+
+class GeoAccessRequest(BaseModel):
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    accuracy: Optional[float] = None
 
 
 # -----------------------------------
@@ -953,17 +1025,35 @@ def api_get_config() -> Dict[str, str]:
             print(f"Erreur lecture config: {e}")
     return {"tel_infirmerie": "", "tel_velo": ""}
 
-# État d'équipe pour animateurs
+
+@app.post("/api/geo_access")
+def api_geo_access(
+    data: GeoAccessRequest,
+    session_token: Optional[str] = Cookie(None, alias="config_session"),
+) -> Dict[str, Any]:
+    """Vérifie si une position est autorisée par rapport à la trace GPX active."""
+    return geo_access_payload(
+        data.latitude,
+        data.longitude,
+        admin_bypass=is_admin_session(session_token),
+    )
+
+# État d'équipe pour anim
 class EtatEquipeUpdate(BaseModel):
     equipe_id: int
     etat: str
-    animateur: str
+    anim: str
     position: Dict[str, float]
     timestamp: str
 
 @app.post("/api/equipes/etat")
-async def api_update_etat_equipe(data: EtatEquipeUpdate) -> Dict[str, Any]:
-    """Mise à jour de l'état d'une équipe par un animateur"""
+async def api_update_etat_equipe(
+    data: EtatEquipeUpdate,
+    session_token: Optional[str] = Cookie(None, alias="config_session"),
+) -> Dict[str, Any]:
+    """Mise à jour de l'état d'une équipe par un anim"""
+    enforce_geo_access(data.position.get("lat"), data.position.get("lng"), session_token)
+
     try:
         with sqlite3.connect(DB_FILE) as conn:
             c = conn.cursor()
@@ -976,7 +1066,7 @@ async def api_update_etat_equipe(data: EtatEquipeUpdate) -> Dict[str, Any]:
             
             nom_equipe, couleur = row
             
-            # Mapper les états de l'interface animateur vers les états de la base
+            # Mapper les états de l'interface anim vers les états de la base
             etat_map = {
                 'pause': 'pause',
                 'spi': 'temps spi',
@@ -996,13 +1086,13 @@ async def api_update_etat_equipe(data: EtatEquipeUpdate) -> Dict[str, Any]:
             
             # Si l'équipe se remet à rouler, créer un point de passage
             if etat_db == 'roule':
-                # Créer un passage avec l'animateur comme observateur
+                # Créer un passage avec l'anim comme observateur
                 timestamp = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
                 c.execute(
                     "INSERT INTO passages (equipe, latitude, longitude, timestamp, observateur, ville) VALUES (?, ?, ?, ?, ?, ?)",
-                    (nom_equipe, data.position['lat'], data.position['lng'], timestamp, data.animateur, ville)
+                    (nom_equipe, data.position['lat'], data.position['lng'], timestamp, data.anim, ville)
                 )
-                print(f"[PASSAGE AUTO] {nom_equipe} - Remise en route par {data.animateur}")
+                print(f"[PASSAGE AUTO] {nom_equipe} - Remise en route par {data.anim}")
             
             conn.commit()
             
@@ -1020,7 +1110,7 @@ async def api_update_etat_equipe(data: EtatEquipeUpdate) -> Dict[str, Any]:
 class AssistanceRequest(BaseModel):
     type: str  # 'velo' ou 'medical'
     equipe_id: int
-    animateur: str
+    anim: str
     position: Dict[str, float]
     timestamp: str
 
@@ -1029,7 +1119,7 @@ async def api_assistance(data: AssistanceRequest) -> Dict[str, Any]:
     """Enregistre une demande d'assistance"""
     try:
         # Log de la demande d'assistance
-        print(f"[ASSISTANCE {data.type.upper()}] Équipe ID: {data.equipe_id}, Animateur: {data.animateur}, Position: {data.position}")
+        print(f"[ASSISTANCE {data.type.upper()}] Équipe ID: {data.equipe_id}, anim: {data.anim}, Position: {data.position}")
         
         # On pourrait stocker ça dans une table dédiée si besoin
         # Pour l'instant on log juste
@@ -1040,10 +1130,16 @@ async def api_assistance(data: AssistanceRequest) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/equipe/{nom}/etat")
-async def api_set_etat(nom: str, data: EtatUpdate = Body(...)):
+async def api_set_etat(
+    nom: str,
+    data: EtatUpdate = Body(...),
+    session_token: Optional[str] = Cookie(None, alias="config_session"),
+):
     etat = data.etat.lower()
     if etat not in ["roule", "temps spi", "pause", "pause midi", "non partie", "arrivée"]:
         raise HTTPException(status_code=400, detail="État invalide (roule / temps spi / pause / pause midi / non partie / arrivée)")
+
+    enforce_geo_access(data.latitude, data.longitude, session_token)
 
     # Récupérer les points clés du GPX
     key_points = get_gpx_key_points()
@@ -1084,7 +1180,12 @@ async def api_set_etat(nom: str, data: EtatUpdate = Body(...)):
     return {"status": "ok", "equipe": nom, "etat": etat}
 
 @app.post("/api/passage")
-async def api_add_passage(p: Passage) -> Dict[str, Any]:
+async def api_add_passage(
+    p: Passage,
+    session_token: Optional[str] = Cookie(None, alias="config_session"),
+) -> Dict[str, Any]:
+    enforce_geo_access(p.latitude, p.longitude, session_token)
+
     ville = await reverse_geocode(p.latitude, p.longitude)  # Ajout reverse geocoding
 
     with sqlite3.connect(DB_FILE) as conn:
@@ -1538,7 +1639,7 @@ def serve_dynamic_anim_manifest() -> JSONResponse:
         "name": f"Anim PéléVTT {route_code}",
         "short_name": f"Anim PVT{route_code}",
         "lang": "fr-FR",
-        "description": f"Application animateur pour {ROUTE_NAME}",
+        "description": f"Application anim pour {ROUTE_NAME}",
         "start_url": "/static/anim.html?source=pwa",
         "id": "/static/anim.html",
         "icons": [
@@ -1704,5 +1805,3 @@ async def change_password(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur lors de la sauvegarde du nouveau mot de passe"
         )
-
-
