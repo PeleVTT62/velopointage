@@ -31,15 +31,18 @@ Application web pour le suivi en temps réel des équipes de cyclistes lors du P
 Installation automatisée par script : 
 Guide complet: `deploy/github/README.md`
 
-1. Récupérer le dépôt
-
+#### 1. Récupérer le dépôt
+```bash
 git clone <URL_DU_REPO>
 cd velopointage
-2. Installer les prérequis sur Linux si besoin
+```
+#### 2. Installer les prérequis sur Linux si besoin
 
 Sur Debian, Ubuntu et la plupart des VPS Linux, un script prépare automatiquement la machine:
-
+```bash
 ./deploy/github/install-prerequisites.sh
+```
+
 Ce script installe:
 
 curl
@@ -47,9 +50,10 @@ git
 openssl
 Docker Engine
 Docker Compose v2
-3. Installation guidée recommandée
-
+#### 3. Installation guidée recommandée
+```bash
 ./deploy/github/install.sh
+```
 Le script réalise automatiquement:
 
 création ou mise à jour de .env.github-minimal
@@ -60,12 +64,12 @@ création des dossiers de données
 déploiement Docker
 Mot de passe admin par défaut de l'interface configuration: pelevtt
 
-4. Vérifier le service
+#### 4. Vérifier le service
 
+```bash
 curl -fsS http://localhost:62000/api/route_context
 curl -fsS http://localhost:62000/api/app_version
-
-
+```
 
 ### Avec Docker Compose
 ```bash
