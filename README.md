@@ -30,25 +30,20 @@ Voir aussi le sommaire des modes de déploiement: `deploy/README.md`.
 
 ### Mode Installation facile (recommandé)
 
-Pour permettre à une autre route d'installer rapidement avec configuration minimale:
+Installation automatisée par script : 
+Guide complet: `deploy/github/README.md`
 
+
+### Avec Docker Compose
 ```bash
 cp deploy/github/.env.example .env.github-minimal
 mkdir -p instances/default/data instances/default/gpx
 docker compose --env-file .env.github-minimal -f deploy/github/docker-compose.yml up -d --build
 ```
 
-Guide complet: `deploy/github/README.md`
 
-### Avec Docker Compose (recommandé)
 
-```bash
-cp .env.example .env
-# Éditer .env avec votre ADMIN_KEY
-docker-compose up -d
-```
 
-Puis accédez à `http://localhost:62000`
 
 ## API
 

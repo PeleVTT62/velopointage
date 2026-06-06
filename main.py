@@ -26,7 +26,7 @@ from fastapi import (
     Response
 )
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Body
 from pydantic import BaseModel
@@ -1578,6 +1578,18 @@ def serve_service_worker():
 @app.get("/")
 def serve_index():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.get("/animateur")
+def serve_animateur_shortcut():
+    """Alias court pour l'application animateur."""
+    return RedirectResponse(url="/static/anim.html", status_code=307)
+
+
+@app.get("/anim")
+def serve_anim_shortcut():
+    """Alias alternatif court pour l'application animateur."""
+    return RedirectResponse(url="/static/anim.html", status_code=307)
 
 
 def get_route_code() -> str:
