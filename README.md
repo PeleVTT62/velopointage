@@ -33,7 +33,7 @@ Guide complet: `deploy/github/README.md`
 
 #### 1. Récupérer le dépôt
 ```bash
-git clone <URL_DU_REPO>
+git clone https://github.com/PeleVTT62/velopointage.git
 cd velopointage
 ```
 #### 2. Installer les prérequis sur Linux si besoin
