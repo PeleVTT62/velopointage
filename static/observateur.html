@@ -903,6 +903,7 @@
     let endPoint = null;
     let userMarker = null;
     let userCircle = null;
+    let userLocationWatchId = null;
     let gpxBounds = null;
     let lastGPSAccuracy = null;
     let refreshInterval = null;
@@ -1381,6 +1382,67 @@
       });
     }
 
+    function getGeolocationPermissionState() {
+      if (!navigator.permissions || !navigator.permissions.query) {
+        return Promise.resolve('unknown');
+      }
+
+      return navigator.permissions
+        .query({ name: 'geolocation' })
+        .then((result) => result.state || 'unknown')
+        .catch(() => 'unknown');
+    }
+
+    async function getCurrentPositionWithRetries() {
+      const attempts = [
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+        { enableHighAccuracy: false, timeout: 20000, maximumAge: 120000 },
+        { enableHighAccuracy: false, timeout: 30000, maximumAge: 300000 }
+      ];
+
+      let lastError = null;
+
+      for (const options of attempts) {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, options);
+          });
+          return position;
+        } catch (error) {
+          lastError = error;
+          // Permission refusée: inutile de retenter
+          if (error && Number(error.code) === 1) {
+            break;
+          }
+        }
+      }
+
+      throw lastError || new Error("Position GPS indisponible");
+    }
+
+    function buildGeoErrorMessage(error) {
+      if (!navigator.geolocation) {
+        return "Géolocalisation non supportée sur cet appareil.";
+      }
+
+      if (window.isSecureContext === false) {
+        return "La géolocalisation nécessite HTTPS (ou localhost).";
+      }
+
+      const code = Number(error && error.code);
+      if (code === 1) {
+        return "Permission GPS refusée. Autorisez la localisation pour ce site, puis rechargez la page.";
+      }
+      if (code === 2) {
+        return "Position GPS indisponible. Activez la localisation de l'appareil puis réessayez.";
+      }
+      if (code === 3) {
+        return "Le GPS met trop de temps à répondre. Sortez en zone dégagée puis réessayez.";
+      }
+
+      return (error && error.message) || "Position GPS requise pour vérifier l'accès.";
+    }
+
     async function checkGeoAccess(latitude, longitude, accuracy) {
       const response = await fetch(`${api}/geo_access`, {
         method: "POST",
@@ -1406,7 +1468,14 @@
           return true;
         }
 
-        const position = await getCurrentPositionOnce();
+        const permissionState = await getGeolocationPermissionState();
+        if (permissionState === 'denied') {
+          observerGeoAccessAllowed = false;
+          afficherMessage("❌ Permission GPS refusée. Autorisez la localisation pour ce site, puis rechargez la page.", 0);
+          return false;
+        }
+
+        const position = await getCurrentPositionWithRetries();
         positionActuelle = {
           lat: position.coords.latitude,
           lon: position.coords.longitude
@@ -1427,7 +1496,7 @@
       } catch (error) {
         observerGeoAccessAllowed = false;
         console.error("Erreur vérification géographique:", error);
-        afficherMessage("❌ Position GPS requise pour utiliser cette page, sauf connexion admin.", 0);
+        afficherMessage("❌ " + buildGeoErrorMessage(error), 0);
         return false;
       }
     }
@@ -1831,7 +1900,11 @@
         return;
       }
 
-      navigator.geolocation.watchPosition(
+      if (userLocationWatchId !== null) {
+        navigator.geolocation.clearWatch(userLocationWatchId);
+      }
+
+      userLocationWatchId = navigator.geolocation.watchPosition(
         pos => {
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;

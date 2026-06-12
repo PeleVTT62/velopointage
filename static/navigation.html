@@ -408,9 +408,10 @@ body::before {
   }
 
   #markerList {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    justify-content: flex-start;
+    flex-wrap: wrap;
+    overflow-x: hidden;
+    overflow-y: auto;
+    justify-content: center;
     padding: 1rem 0;
     gap: 12px;
   }
@@ -438,13 +439,22 @@ body::before {
   }
 
   #fixedBtnContainer {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
     gap: 8px;
     padding-top: 1rem;
   }
 
   #fixedBtnContainer a {
-    padding: 0.85rem 1rem;
-    font-size: 0.9rem;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.7rem 0.45rem;
+    font-size: 0.78rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .floating-button::after {
@@ -571,6 +581,8 @@ let currentTraceBounds = null;
 let pointMarkers = new Map();
 let midiMarkerRef = null;
 let arrivalMarkerRef = null;
+let startMarkerRef = null;
+let resolvedPoiByCoord = new Map();
 
 // S'assurer que la carte est correctement dimensionnée
 setTimeout(() => map.invalidateSize(), 200);
@@ -605,9 +617,23 @@ map.on("click", fitToCurrentTrace);
 
 async function loadActiveGPX() {
   try {
-    const res = await fetch(`${api}/gpx_files`);
-    if(!res.ok) throw new Error("Erreur récupération GPX actif");
-    const data = await res.json();
+    const [gpxFilesRes, poisRes] = await Promise.all([
+      fetch(`${api}/gpx_files`),
+      fetch(`${api}/gpx_pois/active/public`)
+    ]);
+    if(!gpxFilesRes.ok) throw new Error("Erreur récupération GPX actif");
+
+    const data = await gpxFilesRes.json();
+    resolvedPoiByCoord = new Map();
+
+    if (poisRes.ok) {
+      const poiData = await poisRes.json();
+      (poiData.points || []).forEach((poi) => {
+        const key = `${Number(poi.lat).toFixed(6)},${Number(poi.lon).toFixed(6)}`;
+        resolvedPoiByCoord.set(key, poi);
+      });
+    }
+
     if(!data.active) throw new Error("Aucun GPX actif trouvé");
 
     const gpxPath = `/static/gpx/${encodeURIComponent(data.active)}`;
@@ -631,6 +657,7 @@ async function parseAndDisplayGPX(gpxText){
   pointMarkers = new Map();
   midiMarkerRef = null;
   arrivalMarkerRef = null;
+  startMarkerRef = null;
 
   const trkpts = Array.from(xmlDoc.getElementsByTagName("trkpt")).map(pt=>[
     parseFloat(pt.getAttribute("lat")),
@@ -644,7 +671,7 @@ async function parseAndDisplayGPX(gpxText){
   let bounds = trkpts.length > 0 ? L.latLngBounds(trkpts) : [];
   let listHtml = "";
   let signaleurIndex = 1;
-  let midiCoords = null; // <--- pour stocker le "Ravitaillement chaud"
+  let midiCoords = null;
 
   const wpts = xmlDoc.getElementsByTagName("wpt");
   for(let i=0;i<wpts.length;i++){
@@ -655,13 +682,21 @@ async function parseAndDisplayGPX(gpxText){
 
     const lowerName = name.toLowerCase();
     const lowerSym = sym.toLowerCase();
+    const poiKey = `${Number(lat).toFixed(6)},${Number(lon).toFixed(6)}`;
+    const resolvedPoi = resolvedPoiByCoord.get(poiKey);
 
-    // repère midi
-    if(lowerName.includes("ravitaillement chaud") || lowerName.includes("restauration")){
+    // Fallback legacy si la config des POI n'est pas disponible
+    const isLegacyNavigation = lowerName.includes("signaleur") || lowerSym.includes("signaleur") || lowerName.includes("danger") || lowerSym.includes("danger");
+    const isLegacyMidi = lowerName.includes("ravitaillement chaud") || lowerName.includes("restauration") || lowerName.includes("midi") || lowerName.includes("repas");
+
+    const isNavigation = resolvedPoi ? resolvedPoi.role === "navigation" : isLegacyNavigation;
+    const isMidi = resolvedPoi ? resolvedPoi.role === "repas_midi" : isLegacyMidi;
+
+    if (isMidi && !midiCoords) {
       midiCoords = [lat, lon];
     }
 
-    if(!(lowerName.includes("signaleur") || lowerSym.includes("signaleur") || lowerName.includes("danger") || lowerSym.includes("danger"))) continue;
+    if(!isNavigation) continue;
 
     const gmapsLink=`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
 
@@ -727,10 +762,10 @@ async function parseAndDisplayGPX(gpxText){
   // reset boutons
   fixedBtnContainer.innerHTML = "";
 
-  // Boutons fixes (midi et arrivée)
+  // Boutons fixes (midi, depart, arrivee)
   if(midiCoords){
     fixedBtnContainer.innerHTML += `<a href="#" data-focus-target="midi" style="background:linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
-      🥪 Aller à la position du midi
+      🥪 Midi
     </a>`;
   }
 
@@ -755,6 +790,7 @@ async function parseAndDisplayGPX(gpxText){
     });
 
     startMarker.addTo(markerLayer);
+    startMarkerRef = startMarker;
 
     const endMarker = L.marker([endLat,endLon], {
       title: "Arrivée",
@@ -773,8 +809,12 @@ async function parseAndDisplayGPX(gpxText){
     endMarker.addTo(markerLayer);
     arrivalMarkerRef = endMarker;
 
+    fixedBtnContainer.innerHTML += `<a href="#" data-focus-target="start" style="background:linear-gradient(135deg, #3498db 0%, #2980b9 100%);">
+      ↩️ Départ
+    </a>`;
+
     fixedBtnContainer.innerHTML += `<a href="#" data-focus-target="arrival" style="background:linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);">
-      🏁 Aller à l'arrivée
+      🏁 Arrivée
     </a>`;
   }
 
@@ -792,6 +832,10 @@ async function parseAndDisplayGPX(gpxText){
       event.preventDefault();
       if (el.dataset.focusTarget === "midi" && midiCoords && midiMarkerRef) {
         focusMarker(midiMarkerRef, midiCoords);
+      }
+      if (el.dataset.focusTarget === "start" && trkpts.length && startMarkerRef) {
+        const [startLat, startLon] = trkpts[0];
+        focusMarker(startMarkerRef, [startLat, startLon]);
       }
       if (el.dataset.focusTarget === "arrival" && trkpts.length && arrivalMarkerRef) {
         const [endLat, endLon] = trkpts[trkpts.length - 1];

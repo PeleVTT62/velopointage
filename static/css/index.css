@@ -98,6 +98,13 @@ body::before {
   font-size: 1.2rem;
 }
 
+@supports (-webkit-touch-callout: none) {
+  #connection-status {
+    position: fixed !important;
+    top: calc(20px + env(safe-area-inset-top, 0px) + 4px) !important;
+  }
+}
+
 @keyframes statusPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -784,5 +791,14 @@ body::before {
   .settings-btn,
   #connection-status {
     display: none;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  @media screen and (max-width: 768px) {
+    #connection-status {
+      position: fixed !important;
+      top: calc(env(safe-area-inset-top, 0px) + 32px) !important;
+    }
   }
 }

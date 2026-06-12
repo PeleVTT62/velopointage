@@ -675,7 +675,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
-
 <script>
   // Gérer l'affichage temporaire des tooltips sur mobile
   document.addEventListener('DOMContentLoaded', function() {
@@ -697,7 +696,6 @@
   });
 
   const apiBase = "/api";
-  
   // Fonction utilitaire pour échapper HTML (sécurité XSS)
   function escapeHtml(text) {
     const div = document.createElement('div');
@@ -1064,7 +1062,6 @@ function initUserLocation(map) {
       const speed = pos.coords.speed; // Vitesse en m/s
       
       // Afficher les infos GPS
-      const gpsInfo = document.getElementById('gps-info');
       if (window.followMode && gpsInfo) {
         gpsInfo.classList.add('visible');
         

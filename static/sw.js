@@ -4,7 +4,7 @@
  */
 
 // Version du cache - IMPORTANT: Changer ce numéro à chaque déploiement pour forcer la mise à jour
-const CACHE_VERSION = '1.1.23';
+const CACHE_VERSION = '1.1.54';
 const CACHE_NAME = `pelevtt-v${CACHE_VERSION}`;
 const API_CACHE_NAME = `pelevtt-api-v${CACHE_VERSION}`;
 
@@ -19,6 +19,7 @@ const STATIC_ASSETS = [
   '/static/etat.html',
   '/static/log.html',
   '/static/start.html',
+  '/static/navigation.html',
   '/static/configuration.html',
   '/static/css/common.css',
   '/static/css/index.css',
@@ -26,6 +27,7 @@ const STATIC_ASSETS = [
   '/static/js/utils.js',
   '/static/js/connection.js',
   '/static/js/auth.js',
+  '/static/js/route-branding.js',
   '/static/img/logo_pelevtt.png',
   '/site.webmanifest',
   '/site_anim.webmanifest',
@@ -98,6 +100,12 @@ self.addEventListener('fetch', (event) => {
   // Stratégie pour les requêtes API
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirstStrategy(request, API_CACHE_NAME));
+    return;
+  }
+
+  // Les pages HTML doivent privilégier le réseau pour refléter immédiatement les déploiements
+  if (request.mode === 'navigate' || url.pathname.endsWith('.html')) {
+    event.respondWith(networkFirstStrategy(request, CACHE_NAME));
     return;
   }
   

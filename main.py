@@ -57,6 +57,262 @@ GPX_DIR = os.getenv("GPX_DIR", os.path.join(STATIC_DIR, "gpx"))
 GPX_FILE = os.path.join(GPX_DIR, "trace.gpx")
 DB_FILE = os.getenv("DB_FILE", os.path.join(DATA_DIR, "db.sqlite"))
 CONFIG_FILE = os.getenv("CONFIG_FILE", os.path.join(DATA_DIR, "config.json"))
+GPX_IMPORTS_FILE = os.getenv("GPX_IMPORTS_FILE", os.path.join(DATA_DIR, "gpx_imports.json"))
+
+DEFAULT_GPX_POI_ALIASES = {
+    "navigation": ["signaleur", "danger", "point de navigation", "balise"],
+    "repas_midi": ["ravitaillement chaud", "restauration", "repas", "midi"],
+}
+
+
+def load_config_data() -> Dict[str, Any]:
+    """Charge la configuration JSON globale."""
+    if not os.path.exists(CONFIG_FILE):
+        return {}
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except Exception as e:
+        print(f"[WARNING] Erreur lecture config.json: {e}")
+    return {}
+
+
+def save_config_data(config_data: Dict[str, Any]) -> None:
+    """Sauvegarde la configuration JSON globale."""
+    ensure_db_path()
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(config_data, f, indent=2, ensure_ascii=False)
+
+
+def normalize_gpx_meta_entry(value: Any) -> Dict[str, Optional[str]]:
+    """Normalise un enregistrement de métadonnées GPX."""
+    if isinstance(value, str):
+        return {"imported_at": value, "gpx_created_at": None}
+    if isinstance(value, dict):
+        imported_at = value.get("imported_at")
+        gpx_created_at = value.get("gpx_created_at")
+        return {
+            "imported_at": imported_at if isinstance(imported_at, str) else None,
+            "gpx_created_at": gpx_created_at if isinstance(gpx_created_at, str) else None,
+        }
+    return {"imported_at": None, "gpx_created_at": None}
+
+
+def load_gpx_imports_meta() -> Dict[str, Dict[str, Optional[str]]]:
+    """Charge les métadonnées GPX (filename -> imported_at / gpx_created_at)."""
+    if not os.path.exists(GPX_IMPORTS_FILE):
+        return {}
+    try:
+        with open(GPX_IMPORTS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            normalized: Dict[str, Dict[str, Optional[str]]] = {}
+            for k, v in data.items():
+                if not isinstance(k, str):
+                    continue
+                normalized[k] = normalize_gpx_meta_entry(v)
+            return normalized
+    except Exception as e:
+        print(f"[WARNING] Erreur lecture gpx_imports.json: {e}")
+    return {}
+
+
+def save_gpx_imports_meta(meta: Dict[str, Dict[str, Optional[str]]]) -> None:
+    """Sauvegarde les métadonnées GPX."""
+    os.makedirs(DATA_DIR, exist_ok=True)
+    serialized = {k: normalize_gpx_meta_entry(v) for k, v in meta.items() if isinstance(k, str)}
+    with open(GPX_IMPORTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(serialized, f, indent=2, ensure_ascii=False)
+
+
+def extract_gpx_created_at(file_path: str) -> Optional[str]:
+    """Extrait une date de création du GPX depuis les métadonnées ou les points temporels."""
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            gpx = gpxpy.parse(f)
+
+        if gpx.metadata and gpx.metadata.time:
+            return gpx.metadata.time.isoformat(timespec="seconds")
+
+        for track in gpx.tracks:
+            for segment in track.segments:
+                for point in segment.points:
+                    if point.time:
+                        return point.time.isoformat(timespec="seconds")
+
+        for route in gpx.routes:
+            for point in route.points:
+                if point.time:
+                    return point.time.isoformat(timespec="seconds")
+    except Exception:
+        return None
+
+    return None
+
+
+def normalize_aliases(raw_aliases: Any) -> Dict[str, List[str]]:
+    """Normalise les alias POI pour garantir des listes de chaînes propres."""
+    aliases = {
+        "navigation": list(DEFAULT_GPX_POI_ALIASES["navigation"]),
+        "repas_midi": list(DEFAULT_GPX_POI_ALIASES["repas_midi"]),
+    }
+    if not isinstance(raw_aliases, dict):
+        return aliases
+
+    for key in aliases.keys():
+        values = raw_aliases.get(key)
+        if not isinstance(values, list):
+            continue
+        cleaned: List[str] = []
+        for item in values:
+            if not isinstance(item, str):
+                continue
+            val = item.strip().lower()
+            if val and val not in cleaned:
+                cleaned.append(val)
+        if cleaned:
+            aliases[key] = cleaned
+    return aliases
+
+
+def get_gpx_poi_settings() -> Dict[str, Any]:
+    """Récupère la configuration POI GPX (alias + affectations)."""
+    config_data = load_config_data()
+    poi_cfg = config_data.get("gpx_poi", {}) if isinstance(config_data, dict) else {}
+    aliases = normalize_aliases(poi_cfg.get("aliases", {})) if isinstance(poi_cfg, dict) else normalize_aliases({})
+
+    assignments_raw = poi_cfg.get("assignments", {}) if isinstance(poi_cfg, dict) else {}
+    assignments: Dict[str, str] = {}
+    if isinstance(assignments_raw, dict):
+        for poi_id, role in assignments_raw.items():
+            if not isinstance(poi_id, str) or not isinstance(role, str):
+                continue
+            role_norm = role.strip().lower()
+            if role_norm in {"navigation", "repas_midi", "ignore"}:
+                assignments[poi_id] = role_norm
+
+    return {
+        "aliases": aliases,
+        "assignments": assignments,
+    }
+
+
+def save_gpx_poi_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
+    """Sauvegarde la configuration POI GPX normalisée."""
+    normalized = {
+        "aliases": normalize_aliases(settings.get("aliases", {})),
+        "assignments": {},
+    }
+
+    assignments = settings.get("assignments", {})
+    if isinstance(assignments, dict):
+        for poi_id, role in assignments.items():
+            if not isinstance(poi_id, str) or not isinstance(role, str):
+                continue
+            role_norm = role.strip().lower()
+            if role_norm in {"navigation", "repas_midi", "ignore"}:
+                normalized["assignments"][poi_id] = role_norm
+
+    config_data = load_config_data()
+    config_data["gpx_poi"] = normalized
+    save_config_data(config_data)
+    return normalized
+
+
+def get_active_gpx_path() -> Optional[str]:
+    """Retourne le chemin du GPX actif."""
+    active_path = os.path.join(GPX_DIR, "active_gpx.json")
+    if not os.path.exists(active_path):
+        return None
+    try:
+        with open(active_path, "r", encoding="utf-8") as f:
+            active_file = json.load(f).get("active")
+    except Exception:
+        return None
+
+    if not active_file:
+        return None
+
+    gpx_path = os.path.join(GPX_DIR, active_file)
+    return gpx_path if os.path.exists(gpx_path) else None
+
+
+def extract_active_gpx_pois() -> List[Dict[str, Any]]:
+    """Extrait les waypoints (points d'intérêt) du GPX actif."""
+    gpx_path = get_active_gpx_path()
+    if not gpx_path:
+        return []
+
+    try:
+        with open(gpx_path, "r", encoding="utf-8") as gpx_file:
+            gpx = gpxpy.parse(gpx_file)
+    except Exception as e:
+        print(f"[ERROR] Erreur lecture GPX actif: {e}")
+        return []
+
+    points: List[Dict[str, Any]] = []
+    for idx, waypoint in enumerate(gpx.waypoints):
+        if waypoint.latitude is None or waypoint.longitude is None:
+            continue
+        lat = float(waypoint.latitude)
+        lon = float(waypoint.longitude)
+        poi_id = f"wpt-{idx}-{lat:.6f}-{lon:.6f}"
+        points.append(
+            {
+                "id": poi_id,
+                "index": idx,
+                "name": (waypoint.name or "").strip(),
+                "sym": (waypoint.symbol or "").strip(),
+                "desc": (waypoint.description or "").strip(),
+                "comment": (waypoint.comment or "").strip(),
+                "lat": lat,
+                "lon": lon,
+            }
+        )
+    return points
+
+
+def resolve_active_gpx_pois() -> Dict[str, Any]:
+    """Résout les POI avec rôle automatique et rôle final."""
+    settings = get_gpx_poi_settings()
+    aliases = settings["aliases"]
+    assignments = settings["assignments"]
+    points = extract_active_gpx_pois()
+
+    resolved_points: List[Dict[str, Any]] = []
+    counts = {"navigation": 0, "repas_midi": 0, "ignore": 0}
+
+    for point in points:
+        haystack = " ".join(
+            [point.get("name", ""), point.get("sym", ""), point.get("desc", ""), point.get("comment", "")]
+        ).lower()
+
+        auto_role = "ignore"
+        if any(alias in haystack for alias in aliases["repas_midi"]):
+            auto_role = "repas_midi"
+        elif any(alias in haystack for alias in aliases["navigation"]):
+            auto_role = "navigation"
+
+        assigned_role = assignments.get(point["id"])
+        final_role = assigned_role if assigned_role in {"navigation", "repas_midi", "ignore"} else auto_role
+        counts[final_role] += 1
+
+        resolved_points.append(
+            {
+                **point,
+                "auto_role": auto_role,
+                "assigned_role": assigned_role,
+                "role": final_role,
+            }
+        )
+
+    return {
+        "settings": settings,
+        "points": resolved_points,
+        "counts": counts,
+    }
 
 
 def get_cache_version() -> str:
@@ -95,14 +351,9 @@ def render_index_html() -> str:
 def load_password_hash() -> str:
     """Charge le hash du mot de passe depuis le fichier config ou la variable d'environnement"""
     # 1. Vérifier si un fichier de config existe
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, 'r') as f:
-                config_data = json.load(f)
-                if 'password_hash' in config_data:
-                    return config_data['password_hash']
-        except Exception as e:
-            print(f"[WARNING] Erreur lecture config.json: {e}")
+    config_data = load_config_data()
+    if 'password_hash' in config_data:
+        return config_data['password_hash']
     
     # 2. Sinon, utiliser la variable d'environnement
     return os.getenv(
@@ -114,22 +365,11 @@ def load_password_hash() -> str:
 def get_gpx_key_points() -> Dict[str, Dict[str, float]]:
     """Extrait les points clés du GPX actif (départ, arrivée, pause midi)"""
     try:
-        active_path = os.path.join(GPX_DIR, "active_gpx.json")
-        if not os.path.exists(active_path):
+        gpx_path = get_active_gpx_path()
+        if not gpx_path:
             return {}
-        
-        with open(active_path, "r") as f:
-            active_data = json.load(f)
-            active_gpx = active_data.get("active")
-        
-        if not active_gpx:
-            return {}
-        
-        gpx_path = os.path.join(GPX_DIR, active_gpx)
-        if not os.path.exists(gpx_path):
-            return {}
-        
-        with open(gpx_path, "r") as gpx_file:
+
+        with open(gpx_path, "r", encoding="utf-8") as gpx_file:
             gpx = gpxpy.parse(gpx_file)
         
         points = {}
@@ -149,11 +389,12 @@ def get_gpx_key_points() -> Dict[str, Dict[str, float]]:
             end = all_points[-1]
             points["arrivee"] = {"latitude": end.latitude, "longitude": end.longitude}
         
-        # Chercher le waypoint "Ravitaillement chaud" pour la pause midi
-        for waypoint in gpx.waypoints:
-            if waypoint.name and "ravitaillement chaud" in waypoint.name.lower():
-                points["pause_midi"] = {"latitude": waypoint.latitude, "longitude": waypoint.longitude}
-                break
+        # Priorité à la configuration admin des POI pour la pause midi
+        resolved_pois = resolve_active_gpx_pois()
+        repas_candidates = [p for p in resolved_pois["points"] if p.get("role") == "repas_midi"]
+        if repas_candidates:
+            first = repas_candidates[0]
+            points["pause_midi"] = {"latitude": first["lat"], "longitude": first["lon"]}
         
         # Si pas trouvé, utiliser le milieu du parcours par défaut
         if "pause_midi" not in points and all_points:
@@ -168,18 +409,9 @@ def get_gpx_key_points() -> Dict[str, Dict[str, float]]:
 
 def save_password_hash(password_hash: str) -> None:
     """Sauvegarde le hash du mot de passe dans le fichier config"""
-    ensure_db_path()  # Créer le dossier data si nécessaire
-    config_data = {}
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, 'r') as f:
-                config_data = json.load(f)
-        except Exception:
-            pass
-    
+    config_data = load_config_data()
     config_data['password_hash'] = password_hash
-    with open(CONFIG_FILE, 'w') as f:
-        json.dump(config_data, f, indent=2)
+    save_config_data(config_data)
 
 CONFIG_PASSWORD_HASH = load_password_hash()
 SESSION_SECRET = os.getenv("SESSION_SECRET", secrets.token_hex(32))
@@ -827,6 +1059,24 @@ def ensure_gpx_dir():
     if not os.path.exists(GPX_DIR):
         os.makedirs(GPX_DIR, exist_ok=True)
 
+
+def normalize_gpx_filename(raw_name: str) -> str:
+    """Normalise et valide un nom de fichier GPX utilisateur."""
+    if not isinstance(raw_name, str):
+        raise HTTPException(status_code=400, detail="Nom de fichier invalide")
+
+    filename = os.path.basename(raw_name.strip())
+    if not filename:
+        raise HTTPException(status_code=400, detail="Nom de fichier vide")
+    if not filename.lower().endswith(".gpx"):
+        raise HTTPException(status_code=400, detail="Le fichier doit se terminer par .gpx")
+    if filename.lower() == "trace.gpx":
+        raise HTTPException(status_code=400, detail="Le nom trace.gpx est réservé")
+    if filename.lower() == "active_gpx.json":
+        raise HTTPException(status_code=400, detail="Nom de fichier réservé")
+
+    return filename
+
 # -----------------------------------
 # Pydantic models
 # -----------------------------------
@@ -855,6 +1105,21 @@ class GeoAccessRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     accuracy: Optional[float] = None
+
+
+class GpxPoiAliasesUpdate(BaseModel):
+    navigation: List[str] = []
+    repas_midi: List[str] = []
+
+
+class GpxPoiSettingsUpdate(BaseModel):
+    aliases: GpxPoiAliasesUpdate
+    assignments: Dict[str, str] = {}
+
+
+class RenameGpxRequest(BaseModel):
+    old_filename: str
+    new_filename: str
 
 
 # -----------------------------------
@@ -988,20 +1253,10 @@ def api_get_contacts() -> Dict[str, str]:
 def api_update_contacts(data: ContactsUpdate, _: str = Depends(require_auth)) -> Dict[str, Any]:
     """Sauvegarde les contacts GG dans config.json"""
     try:
-        ensure_db_path()
-        config_data = {}
-        if os.path.exists(CONFIG_FILE):
-            try:
-                with open(CONFIG_FILE, 'r') as f:
-                    config_data = json.load(f)
-            except Exception:
-                pass
-        
+        config_data = load_config_data()
         config_data["tel_infirmerie"] = data.tel_infirmerie
         config_data["tel_velo"] = data.tel_velo
-        
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(config_data, f, indent=2)
+        save_config_data(config_data)
         
         return {"status": "ok", "contacts": data.dict()}
     except Exception as e:
@@ -1012,18 +1267,73 @@ def api_update_contacts(data: ContactsUpdate, _: str = Depends(require_auth)) ->
 @app.get("/api/config")
 def api_get_config() -> Dict[str, str]:
     """Récupère la configuration complète (sans le hash de mot de passe)"""
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, 'r') as f:
-                config_data = json.load(f)
-                # Ne pas exposer le hash du mot de passe
-                return {
-                    "tel_infirmerie": config_data.get("tel_infirmerie", ""),
-                    "tel_velo": config_data.get("tel_velo", "")
-                }
-        except Exception as e:
-            print(f"Erreur lecture config: {e}")
+    config_data = load_config_data()
+    if config_data:
+        return {
+            "tel_infirmerie": config_data.get("tel_infirmerie", ""),
+            "tel_velo": config_data.get("tel_velo", "")
+        }
     return {"tel_infirmerie": "", "tel_velo": ""}
+
+
+@app.get("/api/gpx_poi_settings")
+def api_get_gpx_poi_settings(_: str = Depends(require_auth)) -> Dict[str, Any]:
+    """Retourne les alias et affectations POI configurés."""
+    return get_gpx_poi_settings()
+
+
+@app.post("/api/gpx_poi_settings")
+def api_save_gpx_poi_settings(data: GpxPoiSettingsUpdate, _: str = Depends(require_auth)) -> Dict[str, Any]:
+    """Sauvegarde les alias et affectations POI."""
+    normalized = save_gpx_poi_settings(
+        {
+            "aliases": {
+                "navigation": data.aliases.navigation,
+                "repas_midi": data.aliases.repas_midi,
+            },
+            "assignments": data.assignments,
+        }
+    )
+    return {"status": "ok", **normalized}
+
+
+@app.get("/api/gpx_pois/active")
+def api_get_active_gpx_pois(_: str = Depends(require_auth)) -> Dict[str, Any]:
+    """Liste les POI détectés du GPX actif avec rôles auto/manuels."""
+    active_path = os.path.join(GPX_DIR, "active_gpx.json")
+    active_file = None
+    if os.path.exists(active_path):
+        try:
+            with open(active_path, "r", encoding="utf-8") as f:
+                active_file = json.load(f).get("active")
+        except Exception:
+            active_file = None
+
+    resolved = resolve_active_gpx_pois()
+    return {
+        "active": active_file,
+        **resolved,
+    }
+
+
+@app.get("/api/gpx_pois/active/public")
+def api_get_active_gpx_pois_public() -> Dict[str, Any]:
+    """Version publique des POI actifs, utile côté navigation."""
+    active_path = os.path.join(GPX_DIR, "active_gpx.json")
+    active_file = None
+    if os.path.exists(active_path):
+        try:
+            with open(active_path, "r", encoding="utf-8") as f:
+                active_file = json.load(f).get("active")
+        except Exception:
+            active_file = None
+
+    resolved = resolve_active_gpx_pois()
+    return {
+        "active": active_file,
+        "points": resolved["points"],
+        "counts": resolved["counts"],
+    }
 
 
 @app.post("/api/geo_access")
@@ -1416,12 +1726,58 @@ async def broadcast_summary() -> None:
 # -----------------------------------
 @app.delete("/api/gpx")
 async def delete_gpx(filename: str = Query(...), _: str = Depends(require_auth)):
-    gpx_path = os.path.join(GPX_DIR, filename)
-    if os.path.exists(gpx_path):
-        os.remove(gpx_path)
-        return {"message": f"Fichier GPX '{filename}' supprimé"}
-    else:
+    ensure_gpx_dir()
+    normalized_filename = normalize_gpx_filename(filename)
+    gpx_path = os.path.join(GPX_DIR, normalized_filename)
+
+    if not os.path.exists(gpx_path):
         raise HTTPException(status_code=404, detail="Fichier GPX introuvable")
+
+    os.remove(gpx_path)
+
+    imports_meta = load_gpx_imports_meta()
+    if normalized_filename in imports_meta:
+        imports_meta.pop(normalized_filename, None)
+        save_gpx_imports_meta(imports_meta)
+
+    active_path = os.path.join(GPX_DIR, "active_gpx.json")
+    active_file = None
+    if os.path.exists(active_path):
+        try:
+            with open(active_path, "r", encoding="utf-8") as f:
+                active_file = json.load(f).get("active")
+        except Exception:
+            active_file = None
+
+    new_active: Optional[str] = None
+    if active_file == normalized_filename:
+        remaining_files = sorted(
+            [
+                f
+                for f in os.listdir(GPX_DIR)
+                if f.lower().endswith(".gpx") and f.lower() != "trace.gpx"
+            ],
+            key=lambda name: name.lower(),
+        )
+
+        if remaining_files:
+            new_active = remaining_files[0]
+            with open(active_path, "w", encoding="utf-8") as f:
+                json.dump({"active": new_active}, f)
+
+            import shutil
+            shutil.copy(os.path.join(GPX_DIR, new_active), GPX_FILE)
+            load_gpx_points()
+        else:
+            # Plus aucun GPX disponible: on supprime le marqueur actif.
+            if os.path.exists(active_path):
+                os.remove(active_path)
+
+    return {
+        "status": "ok",
+        "deleted": normalized_filename,
+        "new_active": new_active,
+    }
 
 # -----------------------------------
 # Route DELETE pour suppression passage avec logs
@@ -1497,6 +1853,14 @@ async def api_upload_gpx(file: UploadFile = File(...), _: str = Depends(require_
     dest_path = os.path.join(GPX_DIR, filename)
     with open(dest_path, "wb") as f:
         f.write(await file.read())
+
+    imports_meta = load_gpx_imports_meta()
+    imports_meta[filename] = {
+        "imported_at": datetime.now().isoformat(timespec="seconds"),
+        "gpx_created_at": extract_gpx_created_at(dest_path),
+    }
+    save_gpx_imports_meta(imports_meta)
+
     return {"status": "ok", "filename": filename}
 
 
@@ -1531,13 +1895,92 @@ async def reset_passages(_: str = Depends(require_auth)):
 @app.get("/api/gpx_files")
 def api_list_gpx_files():
     ensure_gpx_dir()
-    files = [f for f in os.listdir(GPX_DIR) if f.lower().endswith(".gpx")]
+    files = [
+        f for f in os.listdir(GPX_DIR)
+        if f.lower().endswith(".gpx") and f.lower() != "trace.gpx"
+    ]
+    imports_meta = load_gpx_imports_meta()
+
+    meta: Dict[str, Dict[str, Optional[str]]] = {}
+    updated_meta = False
+    for filename in files:
+        entry = normalize_gpx_meta_entry(imports_meta.get(filename))
+
+        imported_at = entry.get("imported_at")
+        if not imported_at:
+            try:
+                imported_at = datetime.fromtimestamp(os.path.getmtime(os.path.join(GPX_DIR, filename))).isoformat(timespec="seconds")
+            except Exception:
+                imported_at = None
+
+        gpx_created_at = entry.get("gpx_created_at")
+        if not gpx_created_at:
+            gpx_created_at = extract_gpx_created_at(os.path.join(GPX_DIR, filename))
+            if gpx_created_at:
+                updated_meta = True
+
+        meta[filename] = {
+            "imported_at": imported_at,
+            "gpx_created_at": gpx_created_at,
+        }
+
+        # Met à jour la base de métadonnées pour éviter de recalculer.
+        imports_meta[filename] = meta[filename]
+
+    if updated_meta:
+        save_gpx_imports_meta(imports_meta)
+
     active_file = None
     active_path = os.path.join(GPX_DIR, "active_gpx.json")
     if os.path.exists(active_path):
         with open(active_path, "r") as f:
             active_file = json.load(f).get("active")
-    return {"files": files, "active": active_file}
+    return {"files": files, "active": active_file, "meta": meta}
+
+
+@app.post("/api/rename_gpx")
+def api_rename_gpx(data: RenameGpxRequest, _: str = Depends(require_auth)):
+    ensure_gpx_dir()
+
+    old_filename = normalize_gpx_filename(data.old_filename)
+    new_filename = normalize_gpx_filename(data.new_filename)
+
+    if old_filename == new_filename:
+        return {"status": "ok", "filename": old_filename, "unchanged": True}
+
+    old_path = os.path.join(GPX_DIR, old_filename)
+    new_path = os.path.join(GPX_DIR, new_filename)
+
+    if not os.path.exists(old_path):
+        raise HTTPException(status_code=404, detail="Fichier GPX source introuvable")
+    if os.path.exists(new_path):
+        raise HTTPException(status_code=409, detail="Un fichier GPX avec ce nom existe déjà")
+
+    os.rename(old_path, new_path)
+
+    imports_meta = load_gpx_imports_meta()
+    if old_filename in imports_meta:
+        imports_meta[new_filename] = imports_meta.pop(old_filename)
+        save_gpx_imports_meta(imports_meta)
+
+    active_path = os.path.join(GPX_DIR, "active_gpx.json")
+    active_file = None
+    if os.path.exists(active_path):
+        try:
+            with open(active_path, "r", encoding="utf-8") as f:
+                active_file = json.load(f).get("active")
+        except Exception:
+            active_file = None
+
+    if active_file == old_filename:
+        with open(active_path, "w", encoding="utf-8") as f:
+            json.dump({"active": new_filename}, f)
+
+        import shutil
+        shutil.copy(new_path, GPX_FILE)
+        load_gpx_points()
+
+    return {"status": "ok", "old": old_filename, "new": new_filename}
 
 @app.post("/api/set_active_gpx")
 def api_set_active_gpx(data: dict, _: str = Depends(require_auth)):

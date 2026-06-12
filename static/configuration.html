@@ -53,6 +53,12 @@
     padding: 2em 1em;
   }
 
+  html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   /* Animated background effect */
   body::before {
     content: '';
@@ -74,6 +80,7 @@
   }
 
   .container {
+    width: 100%;
     max-width: 900px;
     margin: 0 auto;
     background: var(--glass-bg);
@@ -188,7 +195,7 @@
   }
 
   .section-content.open {
-    max-height: 2000px;
+    max-height: 12000px;
     padding: 1.5em;
   }
 
@@ -245,6 +252,12 @@
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 1em;
+  }
+
+  .table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   th, td {
@@ -507,18 +520,63 @@
     transition: all 0.2s;
   }
 
+  #gpx-list li.gpx-item-active {
+    background: linear-gradient(135deg, rgba(46, 204, 113, 0.12) 0%, rgba(52, 152, 219, 0.12) 100%);
+    border: 2px solid rgba(46, 204, 113, 0.6);
+    box-shadow: 0 6px 18px rgba(46, 204, 113, 0.18);
+  }
+
   #gpx-list li:hover {
     background: #e9ecef;
   }
 
-  #gpx-list li span {
-    flex: 1;
-    font-weight: 500;
+  #gpx-list li.gpx-item-active:hover {
+    background: linear-gradient(135deg, rgba(46, 204, 113, 0.18) 0%, rgba(52, 152, 219, 0.16) 100%);
   }
 
-  #gpx-list li span.active {
+  #gpx-list li .gpx-name {
+    flex: 1;
+    font-weight: 500;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .gpx-name-title {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35em;
+  }
+
+  .gpx-date-line {
+    display: block;
+    margin-top: 0.2em;
+    font-size: 0.76em;
+    color: var(--text-secondary);
+    font-weight: 500;
+    opacity: 0.92;
+  }
+
+  #gpx-list li .gpx-name.active {
     font-weight: 700;
     color: var(--success);
+  }
+
+  .gpx-active-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    margin-left: 0.55em;
+    padding: 0.2em 0.55em;
+    border-radius: 999px;
+    background: var(--success);
+    color: #fff;
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    vertical-align: middle;
   }
 
   .gpx-buttons {
@@ -527,8 +585,10 @@
   }
 
   .gpx-buttons button {
-    padding: 0.5em 1em;
-    font-size: 0.9em;
+    padding: 0.5em 0.7em;
+    font-size: 1.05em;
+    line-height: 1;
+    min-width: 2.4em;
     margin: 0;
   }
 
@@ -543,6 +603,214 @@
   .footer-actions button {
     position: relative;
     z-index: 1;
+  }
+
+  .poi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1em;
+    margin-bottom: 1em;
+  }
+
+  .poi-help {
+    color: var(--text-secondary);
+    font-size: 0.92em;
+    margin-bottom: 1em;
+  }
+
+  .poi-keyword-panel {
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(52, 152, 219, 0.16);
+    border-radius: 12px;
+    padding: 0.8em;
+  }
+
+  .poi-keyword-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    min-height: 34px;
+  }
+
+  .poi-keyword-empty {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    font-style: italic;
+  }
+
+  .poi-keyword-input-row {
+    display: flex;
+    gap: 0.5em;
+    margin-top: 0.5em;
+  }
+
+  .poi-keyword-input {
+    width: 100%;
+    padding: 0.75em;
+    border-radius: 10px;
+    border: 2px solid rgba(52, 152, 219, 0.2);
+    font-size: 0.95em;
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--text-primary);
+  }
+
+  .poi-keyword-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
+  }
+
+  .poi-keyword-chip {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid rgba(52, 152, 219, 0.28);
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(52, 152, 219, 0.12);
+    color: var(--text-primary);
+    font-weight: 600;
+    line-height: 1;
+    max-width: 100%;
+  }
+
+  .poi-keyword-label {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45em 0.75em;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .poi-keyword-remove {
+    border: 0;
+    border-left: 1px solid rgba(52, 152, 219, 0.24);
+    background: rgba(255, 255, 255, 0.35);
+    color: #c0392b;
+    font-weight: 700;
+    cursor: pointer;
+    width: 2em;
+    min-width: 2em;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .poi-keyword-remove:hover {
+    background: rgba(192, 57, 43, 0.12);
+  }
+
+  #poi-active-info {
+    margin-bottom: 0.75em;
+    color: var(--text-secondary);
+    font-size: 0.95em;
+  }
+
+  .poi-sync-status {
+    margin-top: -0.35em;
+    margin-bottom: 0.8em;
+    font-size: 0.88em;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+
+  .poi-sync-status.pending {
+    color: #f39c12;
+  }
+
+  .poi-sync-status.saving {
+    color: #2980b9;
+  }
+
+  .poi-sync-status.saved {
+    color: #27ae60;
+  }
+
+  .poi-sync-status.error {
+    color: #c0392b;
+  }
+
+  #poi-table td select {
+    width: 100%;
+    padding: 0.5em;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #fff;
+  }
+
+  .poi-cell-label {
+    display: none;
+    font-size: 0.78em;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 0.25em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .poi-role-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4em;
+  }
+
+  .poi-role-btn {
+    margin: 0;
+    padding: 0.45em 0.7em;
+    border-radius: 999px;
+    font-size: 0.82em;
+    font-weight: 700;
+    box-shadow: none;
+    transform: none;
+    border: 1px solid rgba(52, 152, 219, 0.25);
+    background: #fff;
+    color: var(--text-primary);
+  }
+
+  .poi-role-btn:hover:not(:disabled),
+  .poi-role-btn:active:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .poi-role-btn.active {
+    color: #fff;
+    border-color: transparent;
+  }
+
+  .poi-role-btn.active.role-navigation {
+    background: #2c7be5;
+  }
+
+  .poi-role-btn.active.role-repas_midi {
+    background: #f57c00;
+  }
+
+  .poi-role-btn.active.role-ignore {
+    background: #7f8c8d;
+  }
+
+  .poi-badge {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    border-radius: 999px;
+    font-size: 0.8em;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .poi-badge.navigation {
+    background: #2c7be5;
+  }
+
+  .poi-badge.repas_midi {
+    background: #f57c00;
+  }
+
+  .poi-badge.ignore {
+    background: #7f8c8d;
   }
 
   /* === RESPONSIVE === */
@@ -580,6 +848,73 @@
 
     .gpx-buttons button {
       flex: 1;
+      min-width: 0;
+    }
+
+    #gpx-list li .gpx-name {
+      display: block;
+      width: 100%;
+      flex: 0 0 100%;
+      max-width: 100%;
+      margin-bottom: 0.4em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      overflow-wrap: normal;
+      word-break: normal;
+    }
+
+    .gpx-active-badge {
+      margin-left: 0.35em;
+      font-size: 0.68em;
+      padding: 0.18em 0.45em;
+    }
+
+    .poi-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .table-scroll {
+      overflow-x: visible;
+    }
+
+    #poi-table thead {
+      display: none;
+    }
+
+    #poi-table,
+    #poi-table tbody,
+    #poi-table tr,
+    #poi-table td {
+      display: block;
+      width: 100%;
+    }
+
+    #poi-table tr {
+      border: 1px solid rgba(52, 152, 219, 0.2);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      margin-bottom: 0.8em;
+      padding: 0.7em;
+    }
+
+    #poi-table td {
+      border-bottom: none;
+      padding: 0.35em 0;
+    }
+
+    .poi-cell-label {
+      display: block;
+    }
+
+    .poi-role-picker {
+      gap: 0.45em;
+    }
+
+    .poi-role-btn {
+      flex: 1 1 calc(33.333% - 0.35em);
+      min-width: 100px;
+      text-align: center;
     }
   }
 </style>
@@ -599,18 +934,20 @@
       </div>
       <div class="section-content">
         <button id="btn-add-equipe" class="btn-success">+ Ajouter une équipe</button>
-        <table id="equipes-table">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Couleur</th>
-              <th style="width: 60px; text-align: center;">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- Équipes insérées dynamiquement -->
-          </tbody>
-        </table>
+        <div class="table-scroll">
+          <table id="equipes-table">
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Couleur</th>
+                <th style="width: 60px; text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Équipes insérées dynamiquement -->
+            </tbody>
+          </table>
+        </div>
         <button id="btn-update-equipes" class="btn-primary">💾 Enregistrer les modifications</button>
       </div>
     </section>
@@ -637,6 +974,62 @@
           <input type="file" id="file-gpx" accept=".gpx" />
         </div>
         <button id="btn-upload-gpx" class="btn-primary">📤 Uploader</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-header" onclick="toggleSection(this)">
+        <h2>🧭 Points d'intérêt GPX</h2>
+        <span class="section-toggle">▼</span>
+      </div>
+      <div class="section-content">
+        <p class="poi-help">
+          Détection configurable des points d'intérêt du GPX actif. Vous pouvez adapter les mots-clés puis attribuer chaque point à la navigation TTV ou au repas du midi.
+        </p>
+
+        <div class="poi-grid">
+          <div class="form-group poi-keyword-panel">
+            <label for="poi-add-navigation">Mots-clés TTV parcours</label>
+            <div id="poi-keywords-navigation" class="poi-keyword-list"></div>
+            <div class="poi-keyword-input-row">
+              <input id="poi-add-navigation" class="poi-keyword-input" type="text" placeholder="Ex: signaleur" />
+              <button id="btn-poi-add-navigation" type="button" class="btn-secondary">+ Ajouter</button>
+            </div>
+          </div>
+          <div class="form-group poi-keyword-panel">
+            <label for="poi-add-midi">Mots-clés Repas midi</label>
+            <div id="poi-keywords-midi" class="poi-keyword-list"></div>
+            <div class="poi-keyword-input-row">
+              <input id="poi-add-midi" class="poi-keyword-input" type="text" placeholder="Ex: ravitaillement chaud" />
+              <button id="btn-poi-add-midi" type="button" class="btn-secondary">+ Ajouter</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="poi-help" style="margin-top: 0.25em;">
+          Détection et enregistrement automatiques activés.
+        </p>
+
+        <p id="poi-active-info"></p>
+        <p id="poi-sync-status" class="poi-sync-status" aria-live="polite">Synchronisé</p>
+
+        <div class="table-scroll">
+          <table id="poi-table">
+            <thead>
+              <tr>
+                <th>Point</th>
+                <th>Symbole</th>
+                <th>Détection</th>
+                <th>Rôle choisi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="4" style="color: var(--text-secondary);">Aucun point d'intérêt détecté.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -743,6 +1136,58 @@
 <script>
   const apiBase = "/api";
   let ws;
+  let poiAssignments = {};
+  let poiPoints = [];
+  let poiAutoSyncTimer = null;
+  let poiAutoSyncInFlight = false;
+  let poiAutoSyncQueued = false;
+  const poiAddressCache = new Map();
+  const poiAddressPending = new Set();
+  const poiAliases = {
+    navigation: [],
+    repas_midi: []
+  };
+
+  function setPoiSyncStatus(text, state = "") {
+    const el = document.getElementById('poi-sync-status');
+    if (!el) return;
+    el.textContent = text;
+    el.className = `poi-sync-status${state ? ` ${state}` : ''}`;
+  }
+
+  function schedulePoiAutoSync(delay = 700) {
+    if (poiAutoSyncTimer) {
+      clearTimeout(poiAutoSyncTimer);
+    }
+    setPoiSyncStatus('Modifications en attente...', 'pending');
+    poiAutoSyncTimer = setTimeout(() => {
+      void runPoiAutoSync();
+    }, delay);
+  }
+
+  async function runPoiAutoSync() {
+    if (poiAutoSyncInFlight) {
+      poiAutoSyncQueued = true;
+      return;
+    }
+
+    poiAutoSyncInFlight = true;
+    setPoiSyncStatus('Enregistrement automatique...', 'saving');
+
+    try {
+      await sauvegarderConfigurationPoi({ silent: true, reload: true });
+      setPoiSyncStatus('Synchronise automatiquement', 'saved');
+    } catch (e) {
+      console.error(e);
+      setPoiSyncStatus('Erreur de synchronisation', 'error');
+    } finally {
+      poiAutoSyncInFlight = false;
+      if (poiAutoSyncQueued) {
+        poiAutoSyncQueued = false;
+        void runPoiAutoSync();
+      }
+    }
+  }
 
   // Vérifier l'authentification au chargement
   async function checkAuth() {
@@ -797,6 +1242,7 @@
     
     allContents.forEach(content => {
       content.classList.remove('open');
+      content.style.maxHeight = '';
     });
     
     allToggles.forEach(toggle => {
@@ -813,6 +1259,7 @@
     if (isOpen) {
       // Fermer la section actuelle
       content.classList.remove('open');
+      content.style.maxHeight = '';
       toggle.classList.remove('open');
     } else {
       // Fermer toutes les autres sections d'abord
@@ -820,8 +1267,17 @@
       
       // Ouvrir la section actuelle
       content.classList.add('open');
+      requestAnimationFrame(() => {
+        content.style.maxHeight = `${content.scrollHeight + 24}px`;
+      });
       toggle.classList.add('open');
     }
+  }
+
+  function refreshOpenSectionHeights() {
+    document.querySelectorAll('.section-content.open').forEach((content) => {
+      content.style.maxHeight = `${content.scrollHeight + 24}px`;
+    });
   }
 
   function construireLigneEquipe(equipe = {nom: "", couleur: "#000000"}) {
@@ -915,12 +1371,50 @@
       return; 
     }
     const file = input.files[0];
+    const peleDay = askPeleDay();
+    if (peleDay === null) return;
+
+    const baseSuggestedName = await suggestPeleDayCityFilename({
+      fallbackFilename: file.name,
+      peleDay,
+      sourceFile: file,
+    });
+
+    const wantsPatternRename = confirm(
+      `Voulez-vous renommer ce GPX avec le format automatique ?\n\n${baseSuggestedName}`
+    );
+
     const formData = new FormData();
     formData.append("file", file);
     try {
       const res = await fetch(`${apiBase}/upload_gpx`, { method: "POST", body: formData });
       if (!res.ok) throw new Error("Erreur upload");
-      afficherMessage("GPX uploadé avec succès !");
+      const uploadPayload = await res.json().catch(() => ({}));
+
+      const originalName = (uploadPayload?.filename || file.name || '').trim();
+      const uniqueSuggestedName = await ensureUniqueGpxFilename(baseSuggestedName, originalName);
+
+      if (wantsPatternRename && uniqueSuggestedName && uniqueSuggestedName !== originalName) {
+        const resRename = await fetch(`${apiBase}/rename_gpx`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ old_filename: originalName, new_filename: uniqueSuggestedName })
+        });
+        if (!resRename.ok) {
+          let errMsg = `GPX uploadé mais renommage impossible (${uniqueSuggestedName})`;
+          try {
+            const payload = await resRename.json();
+            if (payload?.detail) errMsg = `${errMsg}: ${payload.detail}`;
+          } catch (_) {
+            // ignore parsing error
+          }
+          afficherMessage(errMsg, "error");
+        } else {
+          afficherMessage(`GPX uploadé et renommé en "${uniqueSuggestedName}" !`);
+        }
+      } else {
+        afficherMessage("GPX uploadé sans renommage.");
+      }
       input.value = "";
       chargerListeGPX();
     } catch (e) {
@@ -977,7 +1471,7 @@
 
   async function chargerListeGPX() {
     try {
-      const res = await fetch(`${apiBase}/gpx_files`);
+      const res = await fetch(`${apiBase}/gpx_files`, { cache: 'no-store' });
       if (!res.ok) throw new Error("Erreur chargement GPX");
       const data = await res.json();
       const list = document.getElementById("gpx-list");
@@ -988,33 +1482,179 @@
         return;
       }
 
-      data.files.forEach(f => {
+      const sortedFiles = [...data.files].sort((a, b) => {
+        if (a === data.active) return -1;
+        if (b === data.active) return 1;
+        return a.localeCompare(b, 'fr', { sensitivity: 'base' });
+      });
+
+      sortedFiles.forEach(f => {
         const li = document.createElement("li");
 
         const span = document.createElement("span");
-        span.textContent = f;
+        span.className = "gpx-name";
+
+        const title = document.createElement("span");
+        title.className = "gpx-name-title";
+        title.textContent = f;
+
+        const importedAtRaw = data?.meta?.[f]?.imported_at || "";
+        const importedAt = importedAtRaw ? new Date(importedAtRaw) : null;
+        const importedAtLabel = importedAt && !Number.isNaN(importedAt.getTime())
+          ? importedAt.toLocaleString('fr-FR', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : "Date d'import inconnue";
+
+        const gpxCreatedAtRaw = data?.meta?.[f]?.gpx_created_at || "";
+        const gpxCreatedAt = gpxCreatedAtRaw ? new Date(gpxCreatedAtRaw) : null;
+        const gpxCreatedAtLabel = gpxCreatedAt && !Number.isNaN(gpxCreatedAt.getTime())
+          ? gpxCreatedAt.toLocaleString('fr-FR', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : "Date de création GPX inconnue";
+
+        const importedAtEl = document.createElement("small");
+        importedAtEl.className = "gpx-date-line";
+        importedAtEl.textContent = `Import serveur : ${importedAtLabel}`;
+
+        const gpxCreatedAtEl = document.createElement("small");
+        gpxCreatedAtEl.className = "gpx-date-line";
+        gpxCreatedAtEl.textContent = `Créé GPX : ${gpxCreatedAtLabel}`;
+
         if (f === data.active) {
-          span.className = "active";
-          span.textContent += " ✓";
+          li.classList.add("gpx-item-active");
+          span.classList.add("active");
+
+          const activeBadge = document.createElement("span");
+          activeBadge.className = "gpx-active-badge";
+          activeBadge.textContent = "● ACTIF";
+          title.appendChild(activeBadge);
         }
+
+        span.appendChild(title);
+        span.appendChild(importedAtEl);
+        span.appendChild(gpxCreatedAtEl);
         li.appendChild(span);
 
         const btnContainer = document.createElement("div");
         btnContainer.className = "gpx-buttons";
 
+        const btnRenommer = document.createElement("button");
+        btnRenommer.type = "button";
+        btnRenommer.className = "btn-secondary";
+        btnRenommer.textContent = "✏️";
+        btnRenommer.title = "Renommer";
+        btnRenommer.setAttribute("aria-label", "Renommer");
+        btnRenommer.addEventListener("click", async () => {
+          const peleDay = askPeleDay(extractPeleDayFromFilename(f));
+          if (peleDay === null) return;
+
+          btnRenommer.disabled = true;
+          const suggestedName = await suggestPeleDayCityFilename({
+            fallbackFilename: f,
+            peleDay,
+          });
+          btnRenommer.disabled = false;
+
+          const wantsPatternRename = confirm(
+            `Voulez-vous utiliser le format automatique ?\n\n${suggestedName}`
+          );
+
+          const proposed = prompt(
+            "Nouveau nom du fichier GPX :",
+            wantsPatternRename ? suggestedName : f
+          );
+          if (proposed === null) return;
+
+          const trimmed = proposed.trim();
+          if (!trimmed) {
+            afficherMessage("Le nom ne peut pas être vide.", "error");
+            return;
+          }
+
+          const newName = trimmed.toLowerCase().endsWith('.gpx') ? trimmed : `${trimmed}.gpx`;
+          const uniqueNewName = await ensureUniqueGpxFilename(newName, f);
+
+          if (uniqueNewName === f) {
+            afficherMessage("Nom inchangé.");
+            return;
+          }
+
+          try {
+            const resRename = await fetch(`${apiBase}/rename_gpx`, {
+              method: "POST",
+              headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({ old_filename: f, new_filename: uniqueNewName })
+            });
+
+            if (!resRename.ok) {
+              let errMsg = "Erreur lors du renommage GPX";
+              try {
+                const payload = await resRename.json();
+                if (payload?.detail) errMsg = payload.detail;
+              } catch (_) {
+                // ignore parsing error
+              }
+              afficherMessage(errMsg, "error");
+              return;
+            }
+
+            afficherMessage(`GPX renommé : "${f}" -> "${uniqueNewName}"`);
+            await chargerListeGPX();
+            await chargerConfigurationPoi();
+          } catch (error) {
+            console.error(error);
+            afficherMessage("Erreur réseau pendant le renommage GPX", "error");
+          }
+        });
+        btnContainer.appendChild(btnRenommer);
+
         if (f !== data.active) {
           const btnActiver = document.createElement("button");
           btnActiver.type = "button";
           btnActiver.className = "btn-success";
-          btnActiver.textContent = "Activer";
+          btnActiver.textContent = "✅";
+          btnActiver.title = "Activer";
+          btnActiver.setAttribute("aria-label", "Activer");
           btnActiver.addEventListener("click", async () => {
-            await fetch(`${apiBase}/set_active_gpx`, {
-              method: "POST",
-              headers: {"Content-Type": "application/json"},
-              body: JSON.stringify({ filename: f })
-            });
-            afficherMessage(`GPX "${f}" activé !`);
-            chargerListeGPX();
+            btnActiver.disabled = true;
+            try {
+              const resSetActive = await fetch(`${apiBase}/set_active_gpx`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ filename: f })
+              });
+
+              if (!resSetActive.ok) {
+                let errMsg = "Erreur lors de l'activation du GPX";
+                try {
+                  const payload = await resSetActive.json();
+                  if (payload?.detail) errMsg = payload.detail;
+                } catch (_) {
+                  // ignore parsing error
+                }
+                afficherMessage(errMsg, "error");
+                return;
+              }
+
+              afficherMessage(`GPX "${f}" activé !`);
+              await chargerListeGPX();
+              await chargerConfigurationPoi();
+            } catch (error) {
+              console.error(error);
+              afficherMessage("Erreur réseau pendant l'activation du GPX", "error");
+            } finally {
+              btnActiver.disabled = false;
+            }
           });
           btnContainer.appendChild(btnActiver);
         }
@@ -1022,15 +1662,40 @@
         const btnSupprimer = document.createElement("button");
         btnSupprimer.type = "button";
         btnSupprimer.className = "btn-danger";
-        btnSupprimer.textContent = "Supprimer";
+        btnSupprimer.textContent = "🗑️";
+        btnSupprimer.title = "Supprimer";
+        btnSupprimer.setAttribute("aria-label", "Supprimer");
         btnSupprimer.addEventListener("click", async () => {
           if (confirm(`Supprimer le fichier GPX "${f}" ?`)) {
-            const res = await fetch(`${apiBase}/gpx?filename=${encodeURIComponent(f)}`, { method: "DELETE" });
-            if (res.ok) {
-              afficherMessage(`GPX "${f}" supprimé !`);
-              chargerListeGPX();
-            } else {
-              afficherMessage("Erreur suppression GPX", "error");
+            btnSupprimer.disabled = true;
+            try {
+              const resDelete = await fetch(`${apiBase}/gpx?filename=${encodeURIComponent(f)}`, { method: "DELETE" });
+              if (!resDelete.ok) {
+                let errMsg = "Erreur suppression GPX";
+                try {
+                  const payload = await resDelete.json();
+                  if (payload?.detail) errMsg = payload.detail;
+                } catch (_) {
+                  // ignore parsing error
+                }
+                afficherMessage(errMsg, "error");
+                return;
+              }
+
+              const payload = await resDelete.json().catch(() => ({}));
+              if (payload?.new_active) {
+                afficherMessage(`GPX "${f}" supprimé. Nouveau GPX actif: "${payload.new_active}"`);
+              } else {
+                afficherMessage(`GPX "${f}" supprimé !`);
+              }
+
+              await chargerListeGPX();
+              await chargerConfigurationPoi();
+            } catch (error) {
+              console.error(error);
+              afficherMessage("Erreur réseau pendant la suppression GPX", "error");
+            } finally {
+              btnSupprimer.disabled = false;
             }
           }
         });
@@ -1042,6 +1707,553 @@
     } catch (e) {
       afficherMessage("Erreur chargement liste GPX", "error");
       console.error(e);
+    }
+  }
+
+  function cleanFilenameToken(value) {
+    return (value || '')
+      .replace(/[\\/:*?"<>|]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\s/g, '-');
+  }
+
+  function cleanFilenameLabel(value) {
+    return (value || '')
+      .replace(/[\\/:*?"<>|]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function askPeleDay(defaultDay = '') {
+    const proposed = prompt("À quel jour du pélé correspond ce parcours ? (ex: 3)", defaultDay || '');
+    if (proposed === null) return null;
+
+    const cleaned = proposed
+      .trim()
+      .replace(/^jour\s*/i, '')
+      .replace(/[^0-9a-zA-Z-]/g, '')
+      .trim();
+
+    if (!cleaned) {
+      afficherMessage("Le jour du pélé est obligatoire pour proposer le nom.", "error");
+      return null;
+    }
+
+    return cleaned;
+  }
+
+  function extractPeleDayFromFilename(filename) {
+    const match = (filename || '').match(/jour\s*([0-9a-zA-Z-]+)/i);
+    return match ? match[1] : '';
+  }
+
+  function buildPelePatternFilename(peleDay, startCity, endCity) {
+    const dayLabel = cleanFilenameToken(String(peleDay || '')).slice(0, 12) || 'X';
+    const startLabel = cleanFilenameToken(startCity || '').slice(0, 36) || 'Départ';
+    const endLabel = cleanFilenameToken(endCity || '').slice(0, 36) || 'Arrivée';
+    return `Jour${dayLabel}-${startLabel}-${endLabel}.gpx`;
+  }
+
+  async function reverseGeocodeCityFromLatLon(lat, lon) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return '';
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3500);
+      const url = `https://api-adresse.data.gouv.fr/reverse/?lon=${encodeURIComponent(lon)}&lat=${encodeURIComponent(lat)}&limit=1`;
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) return '';
+
+      const data = await res.json();
+      const props = data?.features?.[0]?.properties || {};
+      return (props.city || props.municipality || '').trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function inferCityPairFromText(rawText) {
+    const text = cleanFilenameLabel(rawText || '')
+      .replace(/[_.|]+/g, ' ')
+      .replace(/\bjour\s*\d+\b/gi, ' ')
+      .replace(/\b\d{2,}\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!text) return null;
+
+    const isLikelyCity = (value) => {
+      const v = cleanFilenameLabel(value || '');
+      if (v.length < 2) return false;
+      if (!/[A-Za-zÀ-ÿ]/.test(v)) return false;
+      if (/\d/.test(v)) return false;
+      if (/\b(gpx|trace|parcours|source|route|jour|vtt|fichier)\b/i.test(v)) return false;
+      return true;
+    };
+
+    const candidates = [
+      /\bde\s+(.+?)\s+[aà]\s+(.+?)\b/i,
+      /\bdep(?:art)?\s*[:\-]\s*(.+?)\s+arr(?:ivee|ivée)?\s*[:\-]\s*(.+?)\b/i,
+      /^(.+?)\s*(?:->|→)\s*(.+)$/i,
+    ];
+
+    for (const regex of candidates) {
+      const match = text.match(regex);
+      if (!match) continue;
+
+      const start = cleanFilenameLabel(match[1] || '');
+      const end = cleanFilenameLabel(match[2] || '');
+      if (isLikelyCity(start) && isLikelyCity(end)) {
+        return { start, end };
+      }
+    }
+
+    return null;
+  }
+
+  function parseGpxDetailsFromXml(xmlText) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'application/xml');
+    if (doc.querySelector('parsererror')) return null;
+
+    const trkpts = Array.from(doc.querySelectorAll('trk > trkseg > trkpt'));
+    const rtepts = Array.from(doc.querySelectorAll('rte > rtept'));
+    const wpts = Array.from(doc.querySelectorAll('wpt'));
+
+    const points = trkpts.length >= 2
+      ? trkpts
+      : (rtepts.length >= 2 ? rtepts : wpts);
+
+    if (!points || points.length < 2) return null;
+
+    const first = points[0];
+    const last = points[points.length - 1];
+    const firstName = cleanFilenameLabel(first.querySelector('name')?.textContent || '');
+    const lastName = cleanFilenameLabel(last.querySelector('name')?.textContent || '');
+
+    const startLat = Number(first.getAttribute('lat'));
+    const startLon = Number(first.getAttribute('lon'));
+    const endLat = Number(last.getAttribute('lat'));
+    const endLon = Number(last.getAttribute('lon'));
+
+    const endpoints = [startLat, startLon, endLat, endLon].every(Number.isFinite)
+      ? {
+          start: { lat: startLat, lon: startLon },
+          end: { lat: endLat, lon: endLon },
+        }
+      : null;
+
+    const textHints = [
+      doc.querySelector('metadata > name')?.textContent || '',
+      doc.querySelector('metadata > desc')?.textContent || '',
+      doc.querySelector('trk > name')?.textContent || '',
+      doc.querySelector('rte > name')?.textContent || '',
+      doc.querySelector('rte > desc')?.textContent || '',
+      firstName && lastName ? `de ${firstName} à ${lastName}` : '',
+    ].map((value) => cleanFilenameLabel(value)).filter(Boolean);
+
+    return { endpoints, textHints };
+  }
+
+  async function suggestPeleDayCityFilename({ fallbackFilename, peleDay, sourceFile = null }) {
+    const fallback = buildPelePatternFilename(peleDay, 'Départ', 'Arrivée');
+
+    try {
+      let xmlText = '';
+      if (sourceFile && typeof sourceFile.text === 'function') {
+        xmlText = await sourceFile.text();
+      } else {
+        const res = await fetch(`/static/gpx/${encodeURIComponent(fallbackFilename)}`, { cache: 'no-store' });
+        if (!res.ok) return fallback;
+        xmlText = await res.text();
+      }
+
+      const details = parseGpxDetailsFromXml(xmlText);
+      if (!details) return fallback;
+
+      const hintedPair = details.textHints
+        .map(inferCityPairFromText)
+        .find((pair) => pair && pair.start && pair.end);
+      const filenamePair = inferCityPairFromText(fallbackFilename || '');
+
+      let startCity = cleanFilenameLabel(hintedPair?.start || filenamePair?.start || '');
+      let endCity = cleanFilenameLabel(hintedPair?.end || filenamePair?.end || '');
+
+      if ((!startCity || !endCity) && details.endpoints) {
+        const [startCityRaw, endCityRaw] = await Promise.all([
+          startCity ? Promise.resolve(startCity) : reverseGeocodeCityFromLatLon(details.endpoints.start.lat, details.endpoints.start.lon),
+          endCity ? Promise.resolve(endCity) : reverseGeocodeCityFromLatLon(details.endpoints.end.lat, details.endpoints.end.lon),
+        ]);
+
+        startCity = cleanFilenameLabel(startCity || startCityRaw);
+        endCity = cleanFilenameLabel(endCity || endCityRaw);
+      }
+
+      return buildPelePatternFilename(peleDay, startCity || 'Départ', endCity || 'Arrivée');
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  async function ensureUniqueGpxFilename(candidateName, currentName = '') {
+    const candidate = (candidateName || '').trim();
+    if (!candidate) return '';
+
+    try {
+      const res = await fetch(`${apiBase}/gpx_files`, { cache: 'no-store' });
+      if (!res.ok) return candidate;
+      const data = await res.json();
+      const existing = new Set((data?.files || []).map((name) => String(name).toLowerCase()));
+
+      const currentLower = String(currentName || '').toLowerCase();
+      const candidateLower = candidate.toLowerCase();
+      if (candidateLower === currentLower || !existing.has(candidateLower)) {
+        return candidate;
+      }
+
+      const ext = candidate.toLowerCase().endsWith('.gpx') ? '.gpx' : '';
+      const base = ext ? candidate.slice(0, -4) : candidate;
+      for (let i = 2; i <= 99; i += 1) {
+        const next = `${base} (${i})${ext || '.gpx'}`;
+        if (!existing.has(next.toLowerCase())) {
+          return next;
+        }
+      }
+
+      return `${base} (${Date.now()})${ext || '.gpx'}`;
+    } catch (_) {
+      return candidate;
+    }
+  }
+
+  function suggestShortGpxFilename(filename) {
+    const trimmed = (filename || '').trim();
+    if (!trimmed) return 'parcours.gpx';
+
+    const ext = trimmed.toLowerCase().endsWith('.gpx') ? '.gpx' : '';
+    const rawBase = ext ? trimmed.slice(0, -4) : trimmed;
+
+    const normalizedBase = rawBase
+      .replace(/\s+/g, ' ')
+      .replace(/[\\/:*?"<>|]/g, '-')
+      .trim();
+
+    const MAX_BASE_LENGTH = 42;
+    const shortBase = normalizedBase.length > MAX_BASE_LENGTH
+      ? `${normalizedBase.slice(0, MAX_BASE_LENGTH).trim()}...`
+      : normalizedBase;
+
+    const safeBase = shortBase || 'parcours';
+    return `${safeBase}${ext || '.gpx'}`;
+  }
+
+  function normalizeKeyword(value) {
+    return (value || '').trim().toLowerCase();
+  }
+
+  function setAliasesInForm(aliases) {
+    poiAliases.navigation = (aliases?.navigation || [])
+      .map(normalizeKeyword)
+      .filter(Boolean)
+      .filter((v, i, arr) => arr.indexOf(v) === i);
+    poiAliases.repas_midi = (aliases?.repas_midi || [])
+      .map(normalizeKeyword)
+      .filter(Boolean)
+      .filter((v, i, arr) => arr.indexOf(v) === i);
+
+    renderAliasKeywords('navigation');
+    renderAliasKeywords('repas_midi');
+  }
+
+  function renderAliasKeywords(type) {
+    const listEl = document.getElementById(type === 'navigation' ? 'poi-keywords-navigation' : 'poi-keywords-midi');
+    const keywords = poiAliases[type] || [];
+    listEl.innerHTML = '';
+
+    if (keywords.length === 0) {
+      const empty = document.createElement('span');
+      empty.className = 'poi-keyword-empty';
+      empty.textContent = 'Aucun mot-clé';
+      listEl.appendChild(empty);
+      return;
+    }
+
+    keywords.forEach((keyword, index) => {
+      const chip = document.createElement('span');
+      chip.className = 'poi-keyword-chip';
+
+      const label = document.createElement('span');
+      label.className = 'poi-keyword-label';
+      label.textContent = keyword;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'poi-keyword-remove';
+      removeBtn.dataset.poiKeywordType = type;
+      removeBtn.dataset.poiKeywordIndex = String(index);
+      removeBtn.setAttribute('aria-label', `Supprimer ${keyword}`);
+      removeBtn.textContent = '✕';
+
+      chip.appendChild(label);
+      chip.appendChild(removeBtn);
+      listEl.appendChild(chip);
+    });
+  }
+
+  function addAliasKeyword(type, rawValue) {
+    const value = normalizeKeyword(rawValue);
+    if (!value) return;
+    if (!poiAliases[type]) poiAliases[type] = [];
+    if (poiAliases[type].includes(value)) return;
+    poiAliases[type].push(value);
+    renderAliasKeywords(type);
+    schedulePoiAutoSync();
+  }
+
+  function removeAliasKeyword(type, index) {
+    if (!poiAliases[type]) return;
+    poiAliases[type].splice(index, 1);
+    renderAliasKeywords(type);
+    schedulePoiAutoSync();
+  }
+
+  function badgeRole(role) {
+    const labelMap = {
+      navigation: 'TTV parcours',
+      repas_midi: 'Repas midi',
+      ignore: 'Ignorer'
+    };
+    return `<span class="poi-badge ${role}">${labelMap[role] || 'Ignorer'}</span>`;
+  }
+
+  function getPoiAddressKey(point) {
+    const lat = Number(point?.lat);
+    const lon = Number(point?.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return '';
+    return `${lat.toFixed(5)},${lon.toFixed(5)}`;
+  }
+
+  function extractPoiLocation(point) {
+    const key = getPoiAddressKey(point);
+    if (key && poiAddressCache.has(key)) {
+      return poiAddressCache.get(key);
+    }
+
+    const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
+    const splitParts = (value) => normalize(value)
+      .split(/[|;\n]+|\s+-\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    const isRoad = (value) => /\b(rue|avenue|av\.?|boulevard|bd\.?|route|rt\.?|chemin|impasse|place|allee|all[ée]e|quai|rocade|autoroute|d\d+|n\d+|a\d+)\b/i.test(value);
+    const isCity = (value) => {
+      const v = normalize(value);
+      if (!v || /\d/.test(v) || isRoad(v)) return false;
+      const words = v.split(/\s+/).filter(Boolean);
+      return words.length >= 1 && words.length <= 5;
+    };
+
+    const parts = [
+      ...splitParts(point.desc),
+      ...splitParts(point.comment),
+      ...splitParts(point.name),
+    ];
+
+    let road = parts.find(isRoad) || '';
+    let city = parts.find(isCity) || '';
+
+    if (!road) {
+      const named = normalize(point.name);
+      if (isRoad(named)) road = named;
+    }
+
+    if (!city) {
+      const fallback = normalize(point.name || point.desc || point.comment);
+      const tokens = fallback.split(',').map((x) => x.trim()).filter(Boolean);
+      city = tokens.length > 1 ? tokens[tokens.length - 1] : '';
+      if (!isCity(city)) city = '';
+    }
+
+    return {
+      city: city || 'Ville non renseignée',
+      road: road || 'Axe/rue non renseigné',
+    };
+  }
+
+  async function reverseGeocodePoi(point) {
+    const key = getPoiAddressKey(point);
+    if (!key || poiAddressCache.has(key) || poiAddressPending.has(key)) return false;
+
+    poiAddressPending.add(key);
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3500);
+      const url = `https://api-adresse.data.gouv.fr/reverse/?lon=${encodeURIComponent(point.lon)}&lat=${encodeURIComponent(point.lat)}&limit=1`;
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) return false;
+
+      const data = await res.json();
+      const props = data?.features?.[0]?.properties || {};
+      const city = (props.city || props.municipality || '').trim();
+      const road = (props.name || props.street || '').trim();
+      if (!city && !road) return false;
+
+      poiAddressCache.set(key, {
+        city: city || 'Ville non renseignée',
+        road: road || 'Axe/rue non renseigné',
+      });
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      poiAddressPending.delete(key);
+    }
+  }
+
+  async function enrichPoiAddresses(points) {
+    const missing = (points || []).filter((point) => {
+      const key = getPoiAddressKey(point);
+      return key && !poiAddressCache.has(key) && !poiAddressPending.has(key);
+    });
+
+    if (missing.length === 0) return;
+
+    let changed = false;
+    for (const point of missing) {
+      const ok = await reverseGeocodePoi(point);
+      changed = changed || ok;
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    }
+
+    if (changed) {
+      renderPoiTable(points, { allowEnrich: false });
+      refreshOpenSectionHeights();
+    }
+  }
+
+  function renderPoiTable(points, options = {}) {
+    const { allowEnrich = true } = options;
+    const tbody = document.querySelector('#poi-table tbody');
+    tbody.innerHTML = '';
+
+    if (!points || points.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="color: var(--text-secondary);">Aucun point d\'intérêt détecté dans le GPX actif.</td></tr>';
+      return;
+    }
+
+    points.forEach(point => {
+      const tr = document.createElement('tr');
+      const role = poiAssignments[point.id] || point.assigned_role || point.auto_role || 'ignore';
+      const location = extractPoiLocation(point);
+
+      tr.innerHTML = `
+        <td>
+          <span class="poi-cell-label">Point</span>
+          <strong>${location.city}</strong><br>
+          <small style="color: var(--text-secondary);">${location.road}</small>
+        </td>
+        <td>
+          <span class="poi-cell-label">Mots-clés</span>
+          ${point.sym || '-'}
+        </td>
+        <td>
+          <span class="poi-cell-label">Détection</span>
+          ${badgeRole(point.auto_role || 'ignore')}
+        </td>
+        <td>
+          <span class="poi-cell-label">Rôle choisi</span>
+          <div class="poi-role-picker" data-poi-id="${point.id}">
+            <button type="button" class="poi-role-btn role-navigation ${role === 'navigation' ? 'active' : ''}" data-role="navigation">TTV parcours</button>
+            <button type="button" class="poi-role-btn role-repas_midi ${role === 'repas_midi' ? 'active' : ''}" data-role="repas_midi">Repas</button>
+            <button type="button" class="poi-role-btn role-ignore ${role === 'ignore' ? 'active' : ''}" data-role="ignore">Ignorer</button>
+          </div>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('.poi-role-picker').forEach(group => {
+      group.querySelectorAll('.poi-role-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pointId = group.dataset.poiId;
+          const newRole = btn.dataset.role;
+          poiAssignments[pointId] = newRole;
+
+          group.querySelectorAll('.poi-role-btn').forEach(other => {
+            other.classList.toggle('active', other === btn);
+          });
+
+          schedulePoiAutoSync(350);
+        });
+      });
+    });
+
+    if (allowEnrich) {
+      void enrichPoiAddresses(points);
+    }
+
+    refreshOpenSectionHeights();
+  }
+
+  async function chargerConfigurationPoi() {
+    try {
+      const res = await fetch(`${apiBase}/gpx_pois/active`);
+      if (!res.ok) throw new Error('Impossible de charger les POI GPX');
+
+      const data = await res.json();
+      setAliasesInForm(data.settings?.aliases || {});
+
+      poiAssignments = { ...(data.settings?.assignments || {}) };
+      poiPoints = data.points || [];
+      renderPoiTable(poiPoints, { allowEnrich: true });
+
+      const activeInfo = document.getElementById('poi-active-info');
+      if (data.active) {
+        const counts = data.counts || {};
+        activeInfo.textContent = `GPX actif: ${data.active} | TTV parcours: ${counts.navigation || 0} | Repas midi: ${counts.repas_midi || 0}`;
+      } else {
+        activeInfo.textContent = 'Aucun GPX actif.';
+      }
+    } catch (e) {
+      console.error(e);
+      document.getElementById('poi-active-info').textContent = 'Erreur de chargement des POI GPX.';
+      renderPoiTable([], { allowEnrich: false });
+    }
+  }
+
+  async function sauvegarderConfigurationPoi(options = {}) {
+    const { silent = false, reload = true } = options;
+    const aliases = {
+      navigation: [...(poiAliases.navigation || [])],
+      repas_midi: [...(poiAliases.repas_midi || [])]
+    };
+
+    try {
+      const res = await fetch(`${apiBase}/gpx_poi_settings`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          aliases,
+          assignments: poiAssignments
+        })
+      });
+      if (!res.ok) throw new Error('Erreur sauvegarde POI');
+
+      if (reload) {
+        await chargerConfigurationPoi();
+      }
+      if (!silent) {
+        afficherMessage('Configuration des points d\'intérêt enregistrée !');
+      }
+    } catch (e) {
+      console.error(e);
+      if (!silent) {
+        afficherMessage('Erreur lors de la sauvegarde des points d\'intérêt', 'error');
+      }
+      throw e;
     }
   }
 
@@ -1095,10 +2307,64 @@
   }
 
   // Event listeners
+  // Ne pas dependre des onclick inline (peuvent etre bloques par une CSP stricte).
+  document.querySelectorAll(".section-header").forEach((header) => {
+    header.addEventListener("click", () => toggleSection(header));
+    header.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleSection(header);
+      }
+    });
+    header.setAttribute("tabindex", "0");
+    header.setAttribute("role", "button");
+    header.removeAttribute("onclick");
+  });
+
   document.getElementById("btn-update-equipes").addEventListener("click", updateEquipes);
   document.getElementById("btn-upload-gpx").addEventListener("click", uploadGPX);
   document.getElementById("btn-reset-passages").addEventListener("click", resetPassages);
   document.getElementById("btn-save-contacts").addEventListener("click", saveContacts);
+  document.getElementById("btn-poi-add-navigation").addEventListener("click", () => {
+    const input = document.getElementById('poi-add-navigation');
+    addAliasKeyword('navigation', input.value);
+    input.value = '';
+    input.focus();
+  });
+  document.getElementById("btn-poi-add-midi").addEventListener("click", () => {
+    const input = document.getElementById('poi-add-midi');
+    addAliasKeyword('repas_midi', input.value);
+    input.value = '';
+    input.focus();
+  });
+
+  document.getElementById('poi-add-navigation').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const input = document.getElementById('poi-add-navigation');
+      addAliasKeyword('navigation', input.value);
+      input.value = '';
+    }
+  });
+  document.getElementById('poi-add-midi').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const input = document.getElementById('poi-add-midi');
+      addAliasKeyword('repas_midi', input.value);
+      input.value = '';
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (!target.classList.contains('poi-keyword-remove')) return;
+    const type = target.dataset.poiKeywordType;
+    const index = Number(target.dataset.poiKeywordIndex);
+    if (!type || Number.isNaN(index)) return;
+    removeAliasKeyword(type, index);
+  });
+  window.addEventListener('resize', refreshOpenSectionHeights);
   document.getElementById("form-change-password").addEventListener("submit", changePassword);
   document.getElementById("btn-add-equipe").addEventListener("click", () => {
     document.querySelector("#equipes-table tbody").appendChild(construireLigneEquipe());
@@ -1122,6 +2388,7 @@
     chargerEquipes();
     chargerListeGPX();
     chargerContacts();
+    chargerConfigurationPoi();
     connecterWS();
   });
 </script>
