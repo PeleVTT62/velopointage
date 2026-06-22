@@ -305,18 +305,39 @@ tr:hover {
 
 /* ========== STATUS INDICATOR ========== */
 #connection-status {
-  position: fixed;
-  top: 0;
-  right: 0;
-  padding: var(--spacing-sm) var(--spacing-lg);
-  border-radius: 0 0 0 8px;
-  z-index: 1000;
-  font-size: 0.9em;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  backdrop-filter: blur(10px);
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  padding: 0.6rem 1rem !important;
+  border-radius: 20px !important;
+  z-index: 1000 !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  white-space: nowrap !important;
+  transition: all 0.3s ease !important;
+}
+
+@supports (-webkit-touch-callout: none) {
+  #connection-status {
+    position: fixed !important;
+    top: calc(20px + env(safe-area-inset-top, 0px) + 18px) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #connection-status {
+    top: 10px !important;
+    right: 10px !important;
+    font-size: 0.75rem !important;
+    padding: 0.5rem 0.75rem !important;
+  }
 }
 
 #status-indicator {

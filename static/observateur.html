@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https:; connect-src 'self' ws: wss: https://unpkg.com; font-src 'self' data:;" />
   <title>PéléVTT 62 - TTV Parcours - Pointage</title>
+  <link rel="stylesheet" href="/static/css/common.css">
   <script defer src="/static/js/route-branding.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
@@ -98,7 +99,7 @@
 
     h1 {
       text-align: center;
-      margin: 0 0 2rem 0;
+      margin: 1rem 0 2rem 0;
       font-size: 2.5rem;
       font-weight: 700;
       background: var(--gradient-primary);
@@ -234,6 +235,8 @@
       align-items: center;
       gap: 0.6rem;
       min-width: 0;
+      flex: 1 1 auto;
+      flex-wrap: wrap;
     }
 
     .gps-indicator {
@@ -287,6 +290,12 @@
       flex-shrink: 0;
     }
 
+    .gps-indicator {
+      flex: 0 0 auto;
+      min-width: 0;
+      max-width: 100%;
+    }
+
     .header-observateur strong {
       color: white;
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -334,6 +343,11 @@
     }
 
     #boutons-equipes button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
       padding: 1.5rem 1rem;
       border: 3px solid transparent;
       border-radius: 12px;
@@ -348,6 +362,8 @@
       overflow: hidden;
       font-size: 1rem;
       font-weight: 700;
+      line-height: 1.15;
+      white-space: normal;
     }
 
     #boutons-equipes button::before {
@@ -391,6 +407,8 @@
       margin-bottom: 0.25rem;
       position: relative;
       z-index: 1;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
     }
 
     #boutons-equipes button .team-state {
@@ -398,6 +416,8 @@
       opacity: 0.8;
       position: relative;
       z-index: 1;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
     }
 
     #boutons-equipes button.non-roule {
@@ -441,14 +461,16 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      font-size: 1.5rem;
-      color: white;
-      animation: spin 1s linear infinite;
+      font-size: 1.6rem;
+      animation: hourglassSpin 1s linear infinite;
     }
 
-    @keyframes spin {
-      from { transform: translate(-50%, -50%) rotate(0deg); }
-      to { transform: translate(-50%, -50%) rotate(360deg); }
+    @keyframes hourglassSpin {
+      0%   { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+      25%  { transform: translate(-50%, -50%) rotate(90deg) scale(1.1); }
+      50%  { transform: translate(-50%, -50%) rotate(180deg) scale(1); }
+      75%  { transform: translate(-50%, -50%) rotate(270deg) scale(1.1); }
+      100% { transform: translate(-50%, -50%) rotate(360deg) scale(1); }
     }
 
     /* Toast */
@@ -592,18 +614,25 @@
       background: var(--danger);
       color: white;
       border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
       cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 500;
+      font-size: 0.85rem;
+      font-weight: 700;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
       transition: var(--transition);
-      box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+      box-shadow: 0 2px 6px rgba(231, 76, 60, 0.3);
+      flex-shrink: 0;
     }
 
     .btn-supprimer:hover {
       background: #c0392b;
-      transform: translateY(-2px);
+      transform: scale(1.15);
       box-shadow: 0 4px 12px rgba(231, 76, 60, 0.45);
     }
 
@@ -716,6 +745,16 @@
 
       .header-observateur-main {
         width: 100%;
+        flex: 1 1 100%;
+      }
+
+      .header-observateur {
+        align-items: flex-start;
+      }
+
+      .gps-indicator {
+        width: 100%;
+        justify-content: center;
       }
 
       .header-observateur button {
@@ -735,7 +774,8 @@
       }
       
       #boutons-equipes {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+        gap: 0.75rem;
       }
     }
 
@@ -754,15 +794,16 @@
       }
       
       #boutons-equipes button {
-        padding: 1rem 0.5rem;
+        padding: 1rem 0.75rem;
+        min-height: 96px;
       }
       
       #boutons-equipes button .team-name {
-        font-size: 0.95rem;
+        font-size: 0.92rem;
       }
       
       #boutons-equipes button .team-state {
-        font-size: 0.75rem;
+        font-size: 0.78rem;
       }
     }
   </style>
@@ -818,6 +859,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-gpx@1.7.0/gpx.min.js"></script>
+  <script src="/static/js/ui-components.js"></script>
 
   <script>
     // Vérifier que leaflet-gpx est bien chargé
@@ -1778,7 +1820,7 @@
         if (peutSupprimer) {
           const btnSupprimer = document.createElement("button");
           btnSupprimer.className = "btn-supprimer";
-          btnSupprimer.textContent = "Supprimer";
+          btnSupprimer.textContent = "✕";
           btnSupprimer.onclick = async () => {
             if (confirm("Supprimer ce passage ?")) {
               await supprimerPassage(p.id);
@@ -2203,8 +2245,8 @@
         console.log("✅ WebSocket connecté à", wsUrl);
         wsReconnectAttempts = 0;
         
-        // Afficher un message à l'utilisateur
-        afficherMessage("🔄 Connexion temps réel active", 2000);
+        // Mettre à jour l'indicateur de connexion
+        if (window.connectionStatus) window.connectionStatus.setConnected(true);
         
         // Ping toutes les 25 secondes
         if (wsPingInterval) clearInterval(wsPingInterval);
@@ -2316,7 +2358,7 @@
 
       ws.addEventListener("close", event => {
         console.log("❌ WebSocket fermé - Code:", event.code, "Raison:", event.reason);
-        afficherMessage("⚠️ Connexion temps réel perdue", 3000);
+        if (window.connectionStatus) window.connectionStatus.setConnected(false);
         if (wsPingInterval) {
           clearInterval(wsPingInterval);
           wsPingInterval = null;

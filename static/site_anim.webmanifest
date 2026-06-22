@@ -1,23 +1,25 @@
 {
-  "name": "Anim PéléVTT 62",
-  "short_name": "Anim PéléVTT62",
+  "name": "PéléVTT Anim",
+  "short_name": "Anim",
   "lang": "fr-FR",
   "description": "Application de suivi des parcours VTT pour le Pas-de-Calais",
   "start_url": "/static/anim.html?source=pwa",
   "id": "/static/anim.html",
   "icons": [
     {
-      "src": "/static/android-chrome-192x192.png",
+      "src": "/static/android-chrome-192x192-anim.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "/static/android-chrome-512x512.png",
+      "src": "/static/android-chrome-512x512-anim.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "/static/apple-touch-icon.png",
+      "src": "/static/apple-touch-icon-anim.png",
       "sizes": "180x180",
       "type": "image/png"
     }

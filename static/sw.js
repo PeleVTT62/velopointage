@@ -4,7 +4,7 @@
  */
 
 // Version du cache - IMPORTANT: Changer ce numéro à chaque déploiement pour forcer la mise à jour
-const CACHE_VERSION = '1.1.54';
+const CACHE_VERSION = '1.1.65';
 const CACHE_NAME = `pelevtt-v${CACHE_VERSION}`;
 const API_CACHE_NAME = `pelevtt-api-v${CACHE_VERSION}`;
 
@@ -29,6 +29,9 @@ const STATIC_ASSETS = [
   '/static/js/auth.js',
   '/static/js/route-branding.js',
   '/static/img/logo_pelevtt.png',
+  '/static/android-chrome-192x192-anim.png',
+  '/static/android-chrome-512x512-anim.png',
+  '/static/apple-touch-icon-anim.png',
   '/site.webmanifest',
   '/site_anim.webmanifest',
   '/static/favicon.ico'
