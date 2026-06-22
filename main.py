@@ -367,6 +367,7 @@ def get_gpx_key_points() -> Dict[str, Dict[str, float]]:
     try:
         gpx_path = get_active_gpx_path()
         if not gpx_path:
+            print("[WARN] Aucun GPX actif trouvé pour l'extraction des points clés")
             return {}
 
         with open(gpx_path, "r", encoding="utf-8") as gpx_file:
@@ -385,9 +386,11 @@ def get_gpx_key_points() -> Dict[str, Dict[str, float]]:
             start = all_points[0]
             points["depart"] = {"latitude": start.latitude, "longitude": start.longitude}
             
-            # Point d'arrivée
+            # Point d'arrivée (dernier point du dernier segment du dernier tracé)
             end = all_points[-1]
             points["arrivee"] = {"latitude": end.latitude, "longitude": end.longitude}
+        else:
+            print(f"[WARN] Aucun point de tracé trouvé dans le GPX: {gpx_path}")
         
         # Priorité à la configuration admin des POI pour la pause midi
         resolved_pois = resolve_active_gpx_pois()
@@ -797,8 +800,8 @@ def get_equipes() -> List[Dict[str, Any]]:
             "nom": r[1],
             "couleur": r[2],
             "etat": r[3],
-            "latitude": str(r[4]) if r[4] is not None else "",
-            "longitude": str(r[5]) if r[5] is not None else "",
+            "latitude": float(r[4]) if r[4] is not None else None,
+            "longitude": float(r[5]) if r[5] is not None else None,
             "ville": r[6] if len(r) > 6 and r[6] is not None else ""
         }
         for r in rows
@@ -1661,23 +1664,6 @@ def api_get_summary() -> List[Dict[str, Any]]:
             equipe_lon = equipe.get("longitude")
             equipe_ville = equipe.get("ville")
             
-            # Convertir les strings en float si nécessaire
-            if equipe_lat and equipe_lat != "":
-                try:
-                    equipe_lat = float(equipe_lat)
-                except (ValueError, TypeError):
-                    equipe_lat = None
-            else:
-                equipe_lat = None
-            
-            if equipe_lon and equipe_lon != "":
-                try:
-                    equipe_lon = float(equipe_lon)
-                except (ValueError, TypeError):
-                    equipe_lon = None
-            else:
-                equipe_lon = None
-            
             c.execute(
                 """
                 SELECT id, equipe, latitude, longitude, timestamp, observateur, ville
@@ -2064,6 +2050,23 @@ def api_set_active_gpx(data: dict, _: str = Depends(require_auth)):
 
     # Recharge les points GPX
     load_gpx_points()
+
+    # Met à jour les coordonnées des équipes "arrivée" avec le nouveau point d'arrivée
+    try:
+        key_points = get_gpx_key_points()
+        if "arrivee" in key_points:
+            lat = key_points["arrivee"]["latitude"]
+            lon = key_points["arrivee"]["longitude"]
+            with sqlite3.connect(DB_FILE) as conn:
+                c = conn.cursor()
+                c.execute(
+                    "UPDATE equipes SET latitude = ?, longitude = ? WHERE etat = ?",
+                    (lat, lon, "arrivée")
+                )
+                conn.commit()
+                print(f"[GPX] Coordonnées des équipes 'arrivée' mises à jour vers {lat}, {lon}")
+    except Exception as e:
+        print(f"[ERROR] Mise à jour coordonnées arrivée: {e}")
 
     return {"status": "ok", "active": filename}
 

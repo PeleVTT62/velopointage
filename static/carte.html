@@ -899,11 +899,24 @@ async function loadActiveGPX() {
       // Stocker les bounds pour recentrage ultérieur
       window.gpxBounds = bounds;
 
-      // Récupérer les points du GPX
-      const points = e.target.getLayers()[0].getLatLngs();
-      if (points.length > 0) {
-        const start = points[0]; // premier point
-        const end = points[points.length - 1]; // dernier point
+      // Récupérer les points du GPX (supporte plusieurs traces)
+      let allPoints = [];
+      e.target.getLayers().forEach(layer => {
+        if (layer.getLatLngs) {
+          const pts = layer.getLatLngs();
+          if (Array.isArray(pts)) {
+            // Peut être un tableau plat ou un tableau de tableaux
+            if (pts.length > 0 && Array.isArray(pts[0])) {
+              pts.forEach(p => { allPoints = allPoints.concat(p); });
+            } else {
+              allPoints = allPoints.concat(pts);
+            }
+          }
+        }
+      });
+      if (allPoints.length > 0) {
+        const start = allPoints[0];
+        const end = allPoints[allPoints.length - 1];
         startPoint = [start.lat, start.lng];
         endPoint   = [end.lat, end.lng];
 
@@ -2420,6 +2433,12 @@ function createMultiColorIcon(colors, label = "", emoji = "🚲", options = {}) 
   });
 }
 
+function parseCoord(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
 function afficherEtatPins(equipes) {
   console.log('📍 Affichage pins pour', equipes.length, 'équipes:', equipes);
   markersLayer.clearLayers();
@@ -2442,7 +2461,11 @@ function afficherEtatPins(equipes) {
 
   // Arrivées regroupées à leur position moyenne
   if (arrivees.length) {
-    const arriveesFiltrees = arrivees.filter(e => e.latitude && e.longitude);
+    const arriveesFiltrees = arrivees.map(e => ({
+      ...e,
+      latitude: parseCoord(e.latitude),
+      longitude: parseCoord(e.longitude)
+    })).filter(e => e.latitude !== null && e.longitude !== null);
     if (arriveesFiltrees.length > 0) {
       const colors = arriveesFiltrees.map(e => e.couleur);
       const label = arriveesFiltrees.length;
@@ -2461,34 +2484,36 @@ function afficherEtatPins(equipes) {
   const rayonMetres = 100; // rayon de fusion en mètres
 
   autres.forEach(e => {
-    if (!e.latitude || !e.longitude) return;
+    const lat = parseCoord(e.latitude);
+    const lon = parseCoord(e.longitude);
+    if (lat === null || lon === null) return;
 
     let clusterFound = false;
     for (const cluster of clusters) {
-      const latC = cluster[0].latitude;
-      const lonC = cluster[0].longitude;
-      const dist = distanceMeters(e.latitude, e.longitude, latC, lonC);
+      const latC = cluster.lat;
+      const lonC = cluster.lon;
+      const dist = distanceMeters(lat, lon, latC, lonC);
       if (dist <= rayonMetres) {
-        cluster.push(e);
+        cluster.teams.push({ ...e, latitude: lat, longitude: lon });
         clusterFound = true;
         break;
       }
     }
-    if (!clusterFound) clusters.push([e]);
+    if (!clusterFound) clusters.push({ lat, lon, teams: [{ ...e, latitude: lat, longitude: lon }] });
   });
 
   clusters.forEach(cluster => {
-    const lat = cluster.reduce((sum, e) => sum + e.latitude, 0) / cluster.length;
-    const lon = cluster.reduce((sum, e) => sum + e.longitude, 0) / cluster.length;
-    const colors = cluster.map(e => e.couleur);
-    const label = cluster.length === 1 ? "" : cluster.length;
+    const lat = cluster.teams.reduce((sum, t) => sum + t.latitude, 0) / cluster.teams.length;
+    const lon = cluster.teams.reduce((sum, t) => sum + t.longitude, 0) / cluster.teams.length;
+    const colors = cluster.teams.map(t => t.couleur);
+    const label = cluster.teams.length === 1 ? "" : cluster.teams.length;
     
     // Déterminer l'emoji en fonction de l'état
     let emoji = "✋";
     
     // Si toutes les équipes sont dans le même état, utiliser l'emoji correspondant
-    const etats = cluster.map(e => e.etat.toLowerCase());
-    const etatUnique = etats.every(e => e === etats[0]);
+    const etats = cluster.teams.map(t => t.etat.toLowerCase());
+    const etatUnique = etats.every(t => t === etats[0]);
     
     if (etatUnique) {
       const etatLower = etats[0];
@@ -2506,7 +2531,7 @@ function afficherEtatPins(equipes) {
     }
 
     L.marker([lat, lon], { icon: createMultiColorIcon(colors, label, emoji) })
-      .bindPopup("Équipes:<br>" + cluster.map(e => `${e.nom} (${e.etat})`).join("<br>"))
+      .bindPopup("Équipes:<br>" + cluster.teams.map(t => `${t.nom} (${t.etat})`).join("<br>"))
       .addTo(markersLayer);
   });
 

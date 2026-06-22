@@ -1092,11 +1092,24 @@
           console.log("📐 Bounds:", gpxBounds);
           map.fitBounds(gpxBounds);
 
-          const points = e.target.getLayers()[0].getLatLngs();
-          console.log("📍 Nombre de points:", points.length);
-          if (points.length > 0) {
-            const start = points[0];
-            const end = points[points.length - 1];
+          // Récupérer les points du GPX (supporte plusieurs traces)
+          let allPoints = [];
+          e.target.getLayers().forEach(layer => {
+            if (layer.getLatLngs) {
+              const pts = layer.getLatLngs();
+              if (Array.isArray(pts)) {
+                if (pts.length > 0 && Array.isArray(pts[0])) {
+                  pts.forEach(p => { allPoints = allPoints.concat(p); });
+                } else {
+                  allPoints = allPoints.concat(pts);
+                }
+              }
+            }
+          });
+          console.log("📍 Nombre de points:", allPoints.length);
+          if (allPoints.length > 0) {
+            const start = allPoints[0];
+            const end = allPoints[allPoints.length - 1];
             startPoint = [start.lat, start.lng];
             endPoint = [end.lat, end.lng];
 
@@ -2119,6 +2132,12 @@
     }
 
     // Afficher les pins des équipes selon leurs états
+    function parseCoord(v) {
+      if (v === null || v === undefined || v === '') return null;
+      const n = parseFloat(v);
+      return isNaN(n) ? null : n;
+    }
+
     function afficherEtatPins(equipes) {
       if (!markersLayer) return;
       markersLayer.clearLayers();
@@ -2129,8 +2148,7 @@
       const roulent = equipes.filter(e => 
         e.etat && e.etat.toLowerCase() === "roule" && 
         e.latitude && e.longitude &&
-        typeof e.latitude === 'number' && typeof e.longitude === 'number' &&
-        !isNaN(e.latitude) && !isNaN(e.longitude)
+        !isNaN(parseFloat(e.latitude)) && !isNaN(parseFloat(e.longitude))
       );
 
       // Non parties au départ
@@ -2145,11 +2163,15 @@
 
       // Arrivées regroupées
       if (arrivees.length) {
-        const arriveesFiltrees = arrivees.filter(e => 
-          e.latitude && e.longitude && 
-          typeof e.latitude === 'number' && typeof e.longitude === 'number' &&
-          !isNaN(e.latitude) && !isNaN(e.longitude)
-        );
+        const arriveesFiltrees = arrivees.filter(e => {
+          const lat = parseCoord(e.latitude);
+          const lon = parseCoord(e.longitude);
+          return lat !== null && lon !== null;
+        }).map(e => ({
+          ...e,
+          latitude: parseCoord(e.latitude),
+          longitude: parseCoord(e.longitude)
+        }));
         if (arriveesFiltrees.length > 0) {
           const colors = arriveesFiltrees.map(e => e.couleur || "#666");
           const label = arriveesFiltrees.length;
@@ -2171,43 +2193,34 @@
       const rayonMetres = 100;
 
       [...enPause, ...roulent].forEach(e => {
-        // Valider les coordonnées
-        if (!e.latitude || !e.longitude || 
-            typeof e.latitude !== 'number' || typeof e.longitude !== 'number' ||
-            isNaN(e.latitude) || isNaN(e.longitude)) {
-          return;
-        }
+        const lat = parseCoord(e.latitude);
+        const lon = parseCoord(e.longitude);
+        if (lat === null || lon === null) return;
 
         let clusterFound = false;
         for (const cluster of clusters) {
-          const latC = cluster[0].latitude;
-          const lonC = cluster[0].longitude;
-          const dist = distanceMeters(e.latitude, e.longitude, latC, lonC);
+          const latC = cluster.lat;
+          const lonC = cluster.lon;
+          const dist = distanceMeters(lat, lon, latC, lonC);
           if (dist <= rayonMetres) {
-            cluster.push(e);
+            cluster.teams.push({ ...e, latitude: lat, longitude: lon });
             clusterFound = true;
             break;
           }
         }
-        if (!clusterFound) clusters.push([e]);
+        if (!clusterFound) clusters.push({ lat, lon, teams: [{ ...e, latitude: lat, longitude: lon }] });
       });
 
       clusters.forEach(cluster => {
-        const lat = cluster.reduce((sum, e) => sum + e.latitude, 0) / cluster.length;
-        const lon = cluster.reduce((sum, e) => sum + e.longitude, 0) / cluster.length;
+        const lat = cluster.teams.reduce((sum, t) => sum + t.latitude, 0) / cluster.teams.length;
+        const lon = cluster.teams.reduce((sum, t) => sum + t.longitude, 0) / cluster.teams.length;
         
-        // Valider les coordonnées calculées
-        if (isNaN(lat) || isNaN(lon)) {
-          console.warn("Coordonnées cluster invalides:", lat, lon, cluster);
-          return;
-        }
-        
-        const colors = cluster.map(e => e.couleur || "#666");
-        const label = cluster.length === 1 ? "" : cluster.length;
+        const colors = cluster.teams.map(e => e.couleur || "#666");
+        const label = cluster.teams.length === 1 ? "" : cluster.teams.length;
 
         // Déterminer l'emoji selon les états
         let emoji = "🚴";
-        const etats = cluster.map(e => e.etat.toLowerCase());
+        const etats = cluster.teams.map(e => e.etat.toLowerCase());
         const etatUnique = etats.every(e => e === etats[0]);
 
         if (etatUnique) {
@@ -2225,7 +2238,7 @@
         }
 
         L.marker([lat, lon], { icon: createMultiColorIcon(colors, label, emoji) })
-          .bindPopup(cluster.map(e => `${e.nom} (${e.etat})`).join("<br>"))
+          .bindPopup(cluster.teams.map(e => `${e.nom} (${e.etat})`).join("<br>"))
           .addTo(markersLayer);
       });
     }
