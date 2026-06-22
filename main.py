@@ -2051,7 +2051,7 @@ def api_set_active_gpx(data: dict, _: str = Depends(require_auth)):
     # Recharge les points GPX
     load_gpx_points()
 
-    # Met à jour les coordonnées des équipes "arrivée" et "non partie" avec les nouveaux points
+    # Met à jour les coordonnées des équipes selon leur état avec les nouveaux points
     try:
         key_points = get_gpx_key_points()
         with sqlite3.connect(DB_FILE) as conn:
@@ -2072,6 +2072,14 @@ def api_set_active_gpx(data: dict, _: str = Depends(require_auth)):
                     (lat, lon, "non partie")
                 )
                 print(f"[GPX] Coordonnées des équipes 'non partie' mises à jour vers {lat}, {lon}")
+            if "pause_midi" in key_points:
+                lat = key_points["pause_midi"]["latitude"]
+                lon = key_points["pause_midi"]["longitude"]
+                c.execute(
+                    "UPDATE equipes SET latitude = ?, longitude = ? WHERE etat = ?",
+                    (lat, lon, "pause midi")
+                )
+                print(f"[GPX] Coordonnées des équipes 'pause midi' mises à jour vers {lat}, {lon}")
             conn.commit()
     except Exception as e:
         print(f"[ERROR] Mise à jour coordonnées: {e}")
