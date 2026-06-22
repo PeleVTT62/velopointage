@@ -1676,7 +1676,7 @@ setTimeout(() => {
     const hours = Math.floor(minutes / 60);
     const rem = minutes % 60;
     if (hours < 24) {
-      return rem === 0 ? `il y a ${hours} h` : `il y a ${hours} h ${rem}`;
+      return rem === 0 ? `il y a ${hours} h` : `il y a ${hours} h et ${rem} min`;
     }
     const days = Math.floor(hours / 24);
     return `il y a ${days} j`;
