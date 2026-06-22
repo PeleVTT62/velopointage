@@ -1211,6 +1211,28 @@ async def reverse_geocode(lat: float, lon: float) -> Optional[str]:
             return data.get("address", {}).get("city") or data.get("address", {}).get("town") or data.get("address", {}).get("village")
     return None
 
+
+def resolve_state_coordinates(
+    etat: str,
+    lat: Optional[float],
+    lon: Optional[float],
+    key_points: Optional[Dict[str, Dict[str, float]]] = None,
+) -> tuple[Optional[float], Optional[float]]:
+    """Force les coordonnées de certains états sur les points GPX clés."""
+    if not key_points:
+        return lat, lon
+
+    if etat == "non partie" and "depart" in key_points:
+        return key_points["depart"]["latitude"], key_points["depart"]["longitude"]
+
+    if etat == "arrivée" and "arrivee" in key_points:
+        return key_points["arrivee"]["latitude"], key_points["arrivee"]["longitude"]
+
+    if etat == "pause midi" and "pause_midi" in key_points:
+        return key_points["pause_midi"]["latitude"], key_points["pause_midi"]["longitude"]
+
+    return lat, lon
+
 # -----------------------------------
 # API routes
 # -----------------------------------
@@ -1364,6 +1386,8 @@ async def api_update_etat_equipe(
     """Mise à jour de l'état d'une équipe par un anim"""
     enforce_geo_access(data.position.get("lat"), data.position.get("lng"), session_token)
 
+    key_points = get_gpx_key_points()
+
     try:
         with sqlite3.connect(DB_FILE) as conn:
             c = conn.cursor()
@@ -1384,14 +1408,18 @@ async def api_update_etat_equipe(
                 'roulant': 'roule'
             }
             etat_db = etat_map.get(data.etat, data.etat)
+
+            lat = data.position.get("lat")
+            lon = data.position.get("lng")
+            lat, lon = resolve_state_coordinates(etat_db, lat, lon, key_points)
             
             # Récupérer la ville depuis les coordonnées pour tous les changements d'état
-            ville = await reverse_geocode(data.position['lat'], data.position['lng'])
+            ville = await reverse_geocode(lat, lon)
             
             # Mettre à jour l'état, la position ET la ville
             c.execute(
                 "UPDATE equipes SET etat = ?, latitude = ?, longitude = ?, ville = ? WHERE id = ?",
-                (etat_db, data.position['lat'], data.position['lng'], ville, data.equipe_id)
+                (etat_db, lat, lon, ville, data.equipe_id)
             )
             
             # Si l'équipe se remet à rouler, créer un point de passage
@@ -1400,7 +1428,7 @@ async def api_update_etat_equipe(
                 timestamp = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
                 c.execute(
                     "INSERT INTO passages (equipe, latitude, longitude, timestamp, observateur, ville) VALUES (?, ?, ?, ?, ?, ?)",
-                    (nom_equipe, data.position['lat'], data.position['lng'], timestamp, data.anim, ville)
+                    (nom_equipe, lat, lon, timestamp, data.anim, ville)
                 )
                 print(f"[PASSAGE AUTO] {nom_equipe} - Remise en route par {data.anim}")
             
@@ -1493,22 +1521,16 @@ async def api_set_etat(
             raise HTTPException(status_code=404, detail="Équipe non trouvée")
         etat_actuel = row[0]
 
-        # Met à jour l'état seulement si différent
+        # Mettre à jour l'état seulement si différent
         if etat != etat_actuel:
             c.execute("UPDATE equipes SET etat = ? WHERE nom = ?", (etat, nom))
             
             # Mettre à jour la position GPS selon l'état
-            if etat == "non partie" and "depart" in key_points:
-                lat = key_points["depart"]["latitude"]
-                lon = key_points["depart"]["longitude"]
+            lat, lon = resolve_state_coordinates(etat, data.latitude, data.longitude, key_points)
+
+            if etat in {"non partie", "arrivée"}:
                 c.execute("UPDATE equipes SET latitude = ?, longitude = ? WHERE nom = ?", (lat, lon, nom))
-            elif etat == "arrivée" and "arrivee" in key_points:
-                lat = key_points["arrivee"]["latitude"]
-                lon = key_points["arrivee"]["longitude"]
-                c.execute("UPDATE equipes SET latitude = ?, longitude = ? WHERE nom = ?", (lat, lon, nom))
-            elif etat == "pause midi" and "pause_midi" in key_points:
-                lat = key_points["pause_midi"]["latitude"]
-                lon = key_points["pause_midi"]["longitude"]
+            elif etat == "pause midi":
                 c.execute("UPDATE equipes SET latitude = ?, longitude = ? WHERE nom = ?", (lat, lon, nom))
 
         conn.commit()
