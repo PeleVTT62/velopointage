@@ -2051,22 +2051,30 @@ def api_set_active_gpx(data: dict, _: str = Depends(require_auth)):
     # Recharge les points GPX
     load_gpx_points()
 
-    # Met à jour les coordonnées des équipes "arrivée" avec le nouveau point d'arrivée
+    # Met à jour les coordonnées des équipes "arrivée" et "non partie" avec les nouveaux points
     try:
         key_points = get_gpx_key_points()
-        if "arrivee" in key_points:
-            lat = key_points["arrivee"]["latitude"]
-            lon = key_points["arrivee"]["longitude"]
-            with sqlite3.connect(DB_FILE) as conn:
-                c = conn.cursor()
+        with sqlite3.connect(DB_FILE) as conn:
+            c = conn.cursor()
+            if "arrivee" in key_points:
+                lat = key_points["arrivee"]["latitude"]
+                lon = key_points["arrivee"]["longitude"]
                 c.execute(
                     "UPDATE equipes SET latitude = ?, longitude = ? WHERE etat = ?",
                     (lat, lon, "arrivée")
                 )
-                conn.commit()
                 print(f"[GPX] Coordonnées des équipes 'arrivée' mises à jour vers {lat}, {lon}")
+            if "depart" in key_points:
+                lat = key_points["depart"]["latitude"]
+                lon = key_points["depart"]["longitude"]
+                c.execute(
+                    "UPDATE equipes SET latitude = ?, longitude = ? WHERE etat = ?",
+                    (lat, lon, "non partie")
+                )
+                print(f"[GPX] Coordonnées des équipes 'non partie' mises à jour vers {lat}, {lon}")
+            conn.commit()
     except Exception as e:
-        print(f"[ERROR] Mise à jour coordonnées arrivée: {e}")
+        print(f"[ERROR] Mise à jour coordonnées: {e}")
 
     return {"status": "ok", "active": filename}
 
