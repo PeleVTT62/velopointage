@@ -1334,16 +1334,22 @@
       const buttons = document.querySelectorAll('.state-button');
       buttons.forEach(button => {
         const buttonState = button.dataset.state;
-        if (currentState === 'non-partie') {
+        const normalizedCurrent = currentState
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // enlève accents
+          .replace(/[\s\-]+/g, '-').toLowerCase();
+        const normalizedButton = buttonState
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[\s\-]+/g, '-').toLowerCase();
+        if (normalizedCurrent === 'non-partie') {
           // Seul le bouton "roule" est visible
-          if (buttonState === 'roule') {
+          if (normalizedButton === 'roule') {
             button.style.display = '';
           } else {
             button.style.display = 'none';
           }
         } else {
-          // Comportement normal: masquer seulement le bouton de l'état actuel
-          if (buttonState === currentState) {
+          // Masquer le bouton de l'état actuel
+          if (normalizedButton === normalizedCurrent) {
             button.style.display = 'none';
           } else {
             button.style.display = '';

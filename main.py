@@ -64,6 +64,23 @@ DEFAULT_GPX_POI_ALIASES = {
     "repas_midi": ["ravitaillement chaud", "restauration", "repas", "midi"],
 }
 
+# Cache des villes des points clés GPX (depart, arrivee, pause_midi)
+_key_point_villes: Dict[str, Optional[str]] = {}
+
+
+async def _refresh_key_point_villes():
+    key_points = get_gpx_key_points()
+    for name in ["depart", "arrivee", "pause_midi"]:
+        if name in key_points:
+            try:
+                ville = await reverse_geocode(
+                    key_points[name]["latitude"],
+                    key_points[name]["longitude"]
+                )
+                _key_point_villes[name] = ville
+            except Exception:
+                _key_point_villes[name] = None
+
 
 def load_config_data() -> Dict[str, Any]:
     """Charge la configuration JSON globale."""
@@ -895,6 +912,11 @@ async def startup_event():
         scheduler.add_job(purge_passages, "cron", hour=0, minute=0)
         scheduler.start()
 
+    # Pré-populer le cache des villes des points clés
+    key_points = get_gpx_key_points()
+    if key_points:
+        asyncio.create_task(_refresh_key_point_villes())
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -1550,6 +1572,15 @@ async def api_set_etat(
             elif etat == "pause midi":
                 c.execute("UPDATE equipes SET latitude = ?, longitude = ? WHERE nom = ?", (lat, lon, nom))
 
+            # Géocoder la ville pour les états à position fixe
+            if lat is not None and lon is not None and etat in {"non partie", "arrivée", "pause midi"}:
+                try:
+                    ville = await reverse_geocode(lat, lon)
+                    if ville:
+                        c.execute("UPDATE equipes SET ville = ? WHERE nom = ?", (ville, nom))
+                except Exception:
+                    pass
+
         conn.commit()
 
     # Broadcast immédiat de l'état avec coordonnées puis summary
@@ -1683,11 +1714,18 @@ def api_get_summary() -> List[Dict[str, Any]]:
             else:
                 lat, lon = None, None
             
-            # Priorité : ville de la table equipes > ville du dernier passage
+            # Priorité : ville de la table equipes > ville du dernier passage > point clé GPX
             if equipe_ville:
                 ville = equipe_ville
-            elif r and len(r) > 6:
+            elif r and len(r) > 6 and r[6]:
                 ville = r[6]
+            elif equipe["etat"] in {"non partie", "arrivée", "pause midi"}:
+                key_name = {
+                    "non partie": "depart",
+                    "arrivée": "arrivee",
+                    "pause midi": "pause_midi",
+                }.get(equipe["etat"])
+                ville = _key_point_villes.get(key_name) if key_name else None
             else:
                 ville = None
             
@@ -2034,7 +2072,7 @@ def api_rename_gpx(data: RenameGpxRequest, _: str = Depends(require_auth)):
     return {"status": "ok", "old": old_filename, "new": new_filename}
 
 @app.post("/api/set_active_gpx")
-def api_set_active_gpx(data: dict, _: str = Depends(require_auth)):
+async def api_set_active_gpx(data: dict, _: str = Depends(require_auth)):
     filename = data.get("filename")
     src_path = os.path.join(GPX_DIR, filename)
     if not filename or not os.path.exists(src_path):
@@ -2083,6 +2121,9 @@ def api_set_active_gpx(data: dict, _: str = Depends(require_auth)):
             conn.commit()
     except Exception as e:
         print(f"[ERROR] Mise à jour coordonnées: {e}")
+
+    # Rafraîchir le cache des villes des points clés
+    await _refresh_key_point_villes()
 
     return {"status": "ok", "active": filename}
 
