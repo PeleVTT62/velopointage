@@ -1212,6 +1212,19 @@ async def reverse_geocode(lat: float, lon: float) -> Optional[str]:
     return None
 
 
+def normalize_etat(etat: Optional[str]) -> str:
+    """Normalise les variantes d'états vers une forme canonique."""
+    normalized = (etat or "").strip().lower()
+    aliases = {
+        "arrivee": "arrivée",
+        "non-partie": "non partie",
+        "pause_midi": "pause midi",
+        "assistance medicale": "assistance médicale",
+        "assistance velo": "assistance vélo",
+    }
+    return aliases.get(normalized, normalized)
+
+
 def resolve_state_coordinates(
     etat: str,
     lat: Optional[float],
@@ -1219,6 +1232,7 @@ def resolve_state_coordinates(
     key_points: Optional[Dict[str, Dict[str, float]]] = None,
 ) -> tuple[Optional[float], Optional[float]]:
     """Force les coordonnées de certains états sur les points GPX clés."""
+    etat = normalize_etat(etat)
     if not key_points:
         return lat, lon
 
@@ -1407,7 +1421,7 @@ async def api_update_etat_equipe(
                 'repas': 'pause midi',
                 'roulant': 'roule'
             }
-            etat_db = etat_map.get(data.etat, data.etat)
+            etat_db = normalize_etat(etat_map.get(data.etat, data.etat))
 
             lat = data.position.get("lat")
             lon = data.position.get("lng")
@@ -1502,7 +1516,7 @@ async def api_set_etat(
     data: EtatUpdate = Body(...),
     session_token: Optional[str] = Cookie(None, alias="config_session"),
 ):
-    etat = data.etat.lower()
+    etat = normalize_etat(data.etat)
     if etat not in ["roule", "temps spi", "pause", "pause midi", "non partie", "arrivée", "assistance médicale", "assistance vélo"]:
         raise HTTPException(status_code=400, detail="État invalide (roule / temps spi / pause / pause midi / non partie / arrivée / assistance médicale / assistance vélo)")
 
