@@ -1430,11 +1430,40 @@ async def api_assistance(data: AssistanceRequest) -> Dict[str, Any]:
     try:
         # Log de la demande d'assistance
         print(f"[ASSISTANCE {data.type.upper()}] Équipe ID: {data.equipe_id}, anim: {data.anim}, Position: {data.position}")
-        
-        # On pourrait stocker ça dans une table dédiée si besoin
-        # Pour l'instant on log juste
-        
-        return {"status": "ok", "type": data.type}
+
+        assistance_type = (data.type or "").strip().lower()
+        if assistance_type in {"medical", "medicale", "médical", "médicale"}:
+            etat_assistance = "assistance médicale"
+        elif assistance_type in {"velo", "vélo", "bike", "reparation", "réparation"}:
+            etat_assistance = "assistance vélo"
+        else:
+            raise HTTPException(status_code=400, detail="Type d'assistance invalide (velo/medical)")
+
+        lat = data.position.get("lat")
+        lon = data.position.get("lng")
+        ville = await reverse_geocode(lat, lon) if lat is not None and lon is not None else None
+
+        with sqlite3.connect(DB_FILE) as conn:
+            c = conn.cursor()
+            c.execute("SELECT nom, couleur FROM equipes WHERE id = ?", (data.equipe_id,))
+            row = c.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Équipe non trouvée")
+
+            nom_equipe, couleur = row
+
+            c.execute(
+                "UPDATE equipes SET etat = ?, latitude = ?, longitude = ?, ville = ? WHERE id = ?",
+                (etat_assistance, lat, lon, ville, data.equipe_id)
+            )
+            conn.commit()
+
+        await broadcast_etat_equipe(nom_equipe, etat_assistance, couleur)
+        await broadcast_summary()
+
+        return {"status": "ok", "type": assistance_type, "etat": etat_assistance}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Erreur enregistrement assistance : {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1446,8 +1475,8 @@ async def api_set_etat(
     session_token: Optional[str] = Cookie(None, alias="config_session"),
 ):
     etat = data.etat.lower()
-    if etat not in ["roule", "temps spi", "pause", "pause midi", "non partie", "arrivée"]:
-        raise HTTPException(status_code=400, detail="État invalide (roule / temps spi / pause / pause midi / non partie / arrivée)")
+    if etat not in ["roule", "temps spi", "pause", "pause midi", "non partie", "arrivée", "assistance médicale", "assistance vélo"]:
+        raise HTTPException(status_code=400, detail="État invalide (roule / temps spi / pause / pause midi / non partie / arrivée / assistance médicale / assistance vélo)")
 
     enforce_geo_access(data.latitude, data.longitude, session_token)
 

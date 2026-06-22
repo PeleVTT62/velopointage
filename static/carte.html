@@ -2270,12 +2270,16 @@ function refreshSummaryTable(summary) {
 summaryComplet.forEach(s => {
   const d1 = s.distance_from_start_km != null ? s.distance_from_start_km.toFixed(1) : '-';
   const d2 = s.distance_to_end_km != null ? s.distance_to_end_km.toFixed(1) : '-';
+  const etat = (s.etat || 'non partie').toLowerCase();
+  const etatDisplay = etat === 'assistance médicale' ? '🚑 Assistance médicale'
+    : etat === 'assistance velo' || etat === 'assistance vélo' ? '🔧 Assistance vélo'
+    : s.etat;
   html += `<tr>
     <td>${escapeHtml(s.equipe)}</td>
     <td>${escapeHtml(s.ville || '-')}</td>
     <td>${d1}</td>
     <td>${d2}</td>
-    <td>${escapeHtml(s.etat)}</td>
+    <td>${escapeHtml(etatDisplay || 'non partie')}</td>
   </tr>`;
 });
 
@@ -2421,8 +2425,8 @@ function afficherEtatPins(equipes) {
   markersLayer.clearLayers();
 
   const nonParties = equipes.filter(e => e.etat.toLowerCase() === "non partie");
-  const arrivees = equipes.filter(e => e.etat.toLowerCase() === "arrivée");
-  const autres = equipes.filter(e => ["pause", "pause midi", "temps spi"].includes(e.etat.toLowerCase()));
+  const arrivees = equipes.filter(e => ["arrivée", "arrivee"].includes(e.etat.toLowerCase()));
+  const autres = equipes.filter(e => ["pause", "pause midi", "temps spi", "assistance médicale", "assistance velo", "assistance vélo"].includes(e.etat.toLowerCase()));
   
   console.log(`📊 Non parties: ${nonParties.length}, Arrivées: ${arrivees.length}, Autres: ${autres.length}`);
 
@@ -2491,7 +2495,14 @@ function afficherEtatPins(equipes) {
       if (etatLower === "pause") emoji = "✋";
       else if (etatLower === "pause midi") emoji = "🍽️";
       else if (etatLower === "temps spi") emoji = "🙏";
+      else if (etatLower === "assistance médicale") emoji = "🚑";
+      else if (etatLower === "assistance velo" || etatLower === "assistance vélo") emoji = "🔧";
       else emoji = "✋";
+    } else if (etats.includes("assistance médicale")) {
+      // Priorité visuelle à l'assistance médicale dans les clusters mixtes
+      emoji = "🚑";
+    } else if (etats.includes("assistance velo") || etats.includes("assistance vélo")) {
+      emoji = "🔧";
     }
 
     L.marker([lat, lon], { icon: createMultiColorIcon(colors, label, emoji) })

@@ -1864,13 +1864,17 @@
       ['pause', '✋<i>(en pause)</i></span>'],
       ['pause midi', '🍽️<i>(pause midi)</i></span>'],
       ['temps spi', '🙏<i>(en temps spi)</i></span>'],
+      ['assistance médicale', '🚑<i>(assistance médicale)</i></span>'],
+      ['assistance medicale', '🚑<i>(assistance médicale)</i></span>'],
+      ['assistance vélo', '🔧<i>(assistance vélo)</i></span>'],
+      ['assistance velo', '🔧<i>(assistance vélo)</i></span>'],
       ['roule', ''],
       ['non partie', '🚦<i>(non partie)</i></span>'],
       ['arrivée', '🏁<i>(arrivée)</i></span>']
     ]);
 
     function getEtatIcon(etat) {
-      return ETAT_ICONS.get(etat) || "";
+      return ETAT_ICONS.get(String(etat || '').toLowerCase()) || "";
     }
 
     let toastTimeout = null;
@@ -2121,7 +2125,7 @@
 
       const nonParties = equipes.filter(e => e.etat && e.etat.toLowerCase() === "non partie");
       const arrivees = equipes.filter(e => e.etat && e.etat.toLowerCase() === "arrivée");
-      const enPause = equipes.filter(e => e.etat && ["pause", "pause midi", "temps spi"].includes(e.etat.toLowerCase()));
+      const enPause = equipes.filter(e => e.etat && ["pause", "pause midi", "temps spi", "assistance médicale", "assistance medicale", "assistance vélo", "assistance velo"].includes(e.etat.toLowerCase()));
       const roulent = equipes.filter(e => 
         e.etat && e.etat.toLowerCase() === "roule" && 
         e.latitude && e.longitude &&
@@ -2212,6 +2216,12 @@
           else if (etatLower === "pause") emoji = "✋";
           else if (etatLower === "pause midi") emoji = "🍽️";
           else if (etatLower === "temps spi") emoji = "🙏";
+          else if (etatLower === "assistance médicale" || etatLower === "assistance medicale") emoji = "🚑";
+          else if (etatLower === "assistance vélo" || etatLower === "assistance velo") emoji = "🔧";
+        } else if (etats.includes("assistance médicale") || etats.includes("assistance medicale")) {
+          emoji = "🚑";
+        } else if (etats.includes("assistance vélo") || etats.includes("assistance velo")) {
+          emoji = "🔧";
         }
 
         L.marker([lat, lon], { icon: createMultiColorIcon(colors, label, emoji) })
