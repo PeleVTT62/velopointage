@@ -81,7 +81,7 @@
 
       <section id="external-section" class="external-section" aria-labelledby="external-title" hidden>
         <h2 id="external-title" class="external-title">Ressources externes</h2>
-        <a href="https://synology.euphrate.ovh/sharing/kBW7GnQtR" target="_blank" rel="noopener noreferrer" class="mode-card" aria-label="Envoyer vidéo Zapping - Ouvre une nouvelle fenêtre vers le partage de fichiers">
+        <a id="zapping-link" href="https://synology.euphrate.ovh/sharing/kBW7GnQtR" target="_blank" rel="noopener noreferrer" class="mode-card" aria-label="Envoyer vidéo Zapping - Ouvre une nouvelle fenêtre vers le partage de fichiers">
           <div class="mode-icon">🎥</div>
           <div class="mode-info">
             <div class="mode-title">Zapping</div>
@@ -259,6 +259,7 @@
 
       async function applyRouteVisibility() {
         const externalSection = document.getElementById('external-section');
+        const zappingLink = document.getElementById('zapping-link');
         if (!externalSection) return;
 
         try {
@@ -268,6 +269,18 @@
           const data = await res.json();
           const isRoute62 = (data?.route_slug || '').toLowerCase() === 'route62';
           externalSection.hidden = !isRoute62;
+
+          if (!isRoute62 || !zappingLink) {
+            return;
+          }
+
+          const settingsRes = await fetch('/api/homepage_settings', { cache: 'no-store' });
+          if (!settingsRes.ok) return;
+
+          const settings = await settingsRes.json();
+          if (settings?.zapping_url) {
+            zappingLink.href = settings.zapping_url;
+          }
         } catch (error) {
           // En cas d'erreur, conserver la section masquée par défaut.
           logger.warn('Contexte route indisponible:', error);

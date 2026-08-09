@@ -1,12 +1,13 @@
 import os
 import json
 import math
+import re
 import sqlite3
 import asyncio
 import secrets
 import hashlib
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta, date
+from typing import List, Dict, Any, Optional, Tuple
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import (
@@ -63,6 +64,18 @@ DEFAULT_GPX_POI_ALIASES = {
     "navigation": ["signaleur", "danger", "point de navigation", "balise"],
     "repas_midi": ["ravitaillement chaud", "restauration", "repas", "midi"],
 }
+TEAM_COLOR_PALETTE = [
+    "#ff0000",
+    "#0000ff",
+    "#00aa00",
+    "#ffa500",
+    "#8e44ad",
+    "#16a085",
+    "#e91e63",
+    "#f1c40f",
+]
+DEFAULT_ROUTE62_ZAPPING_URL = "https://synology.euphrate.ovh/sharing/kBW7GnQtR"
+MAX_EVENT_DAYS = 5
 
 # Cache des villes des points clés GPX (depart, arrivee, pause_midi)
 _key_point_villes: Dict[str, Optional[str]] = {}
@@ -101,6 +114,234 @@ def save_config_data(config_data: Dict[str, Any]) -> None:
     ensure_db_path()
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(config_data, f, indent=2, ensure_ascii=False)
+
+
+def normalize_team_color(value: Any) -> str:
+    """Normalise une couleur hexadécimale CSS (#rrggbb)."""
+    if not isinstance(value, str):
+        return ""
+    color = value.strip().lower()
+    if len(color) != 7 or not color.startswith("#"):
+        return ""
+    if any(ch not in "0123456789abcdef" for ch in color[1:]):
+        return ""
+    return color
+
+
+def pick_next_team_color(used_colors: List[str]) -> str:
+    """Retourne la prochaine couleur d'équipe non encore utilisée."""
+    normalized_used = {normalize_team_color(color) for color in used_colors}
+    normalized_used.discard("")
+
+    for color in TEAM_COLOR_PALETTE:
+        if color not in normalized_used:
+            return color
+
+    return TEAM_COLOR_PALETTE[len(normalized_used) % len(TEAM_COLOR_PALETTE)]
+
+
+def get_homepage_settings() -> Dict[str, str]:
+    """Expose les réglages d'accueil dépendants de la route."""
+    default_url = DEFAULT_ROUTE62_ZAPPING_URL if ROUTE_SLUG.lower() == "route62" else ""
+    config_data = load_config_data()
+    configured_url = config_data.get("route62_zapping_url", "") if isinstance(config_data, dict) else ""
+    zapping_url = configured_url.strip() if isinstance(configured_url, str) else ""
+    if ROUTE_SLUG.lower() == "route62" and not zapping_url:
+        zapping_url = default_url
+
+    return {
+        "route_slug": ROUTE_SLUG,
+        "route_name": ROUTE_NAME,
+        "zapping_url": zapping_url,
+    }
+
+
+def save_homepage_settings(zapping_url: str) -> Dict[str, str]:
+    """Sauvegarde les réglages d'accueil autorisés pour la route active."""
+    if ROUTE_SLUG.lower() != "route62":
+        raise HTTPException(status_code=403, detail="Réglage disponible uniquement pour la route 62")
+
+    cleaned_url = (zapping_url or "").strip()
+    if cleaned_url and not (cleaned_url.startswith("https://") or cleaned_url.startswith("http://")):
+        raise HTTPException(status_code=400, detail="Le lien Zapping doit commencer par http:// ou https://")
+
+    config_data = load_config_data()
+    config_data["route62_zapping_url"] = cleaned_url or DEFAULT_ROUTE62_ZAPPING_URL
+    save_config_data(config_data)
+    return get_homepage_settings()
+
+
+def parse_iso_date(value: str) -> date:
+    """Parse une date ISO YYYY-MM-DD."""
+    try:
+        return datetime.strptime((value or "").strip(), "%Y-%m-%d").date()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="La date doit etre au format YYYY-MM-DD") from exc
+
+
+def parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
+    """Parse un datetime ISO en gerant le suffixe Z."""
+    if not value or not isinstance(value, str):
+        return None
+    raw = value.strip()
+    if not raw:
+        return None
+    if raw.endswith("Z"):
+        raw = raw[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is not None:
+            dt = dt.astimezone().replace(tzinfo=None)
+        return dt
+    except Exception:
+        return None
+
+
+def utc_now_iso() -> str:
+    return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+
+def get_event_schedule_settings() -> Dict[str, Any]:
+    """Retourne la configuration du jour 1 de l'evenement (max 5 jours)."""
+    config_data = load_config_data()
+    schedule = config_data.get("event_schedule") if isinstance(config_data, dict) else None
+    start_date = ""
+    if isinstance(schedule, dict):
+        raw = schedule.get("start_date")
+        if isinstance(raw, str):
+            start_date = raw.strip()
+
+    return {
+        "start_date": start_date,
+        "max_days": MAX_EVENT_DAYS,
+    }
+
+
+def save_event_schedule_settings(start_date_value: str) -> Dict[str, Any]:
+    """Sauvegarde la date de depart du jour 1."""
+    cleaned = (start_date_value or "").strip()
+    if cleaned:
+        parse_iso_date(cleaned)
+
+    config_data = load_config_data()
+    config_data["event_schedule"] = {
+        "start_date": cleaned,
+        "max_days": MAX_EVENT_DAYS,
+    }
+    save_config_data(config_data)
+    return get_event_schedule_settings()
+
+
+def get_event_day_for_date(target_date: date) -> Optional[int]:
+    settings = get_event_schedule_settings()
+    start_date_raw = settings.get("start_date") or ""
+    if not start_date_raw:
+        return None
+    start_day = parse_iso_date(start_date_raw)
+    day_index = (target_date - start_day).days + 1
+    if day_index < 1 or day_index > MAX_EVENT_DAYS:
+        return None
+    return day_index
+
+
+def extract_day_number_from_filename(filename: str) -> Optional[int]:
+    match = re.search(r"jour\s*([1-5])", filename or "", flags=re.IGNORECASE)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except Exception:
+        return None
+
+
+def find_gpx_for_day(day_number: int) -> Optional[str]:
+    ensure_gpx_dir()
+    files = sorted(
+        [
+            f
+            for f in os.listdir(GPX_DIR)
+            if f.lower().endswith(".gpx") and f.lower() != "trace.gpx"
+        ],
+        key=lambda name: name.lower(),
+    )
+
+    # Priorite au format JourX dans le nom de fichier.
+    by_day = {extract_day_number_from_filename(name): name for name in files if extract_day_number_from_filename(name) is not None}
+    if day_number in by_day:
+        return by_day[day_number]
+
+    # Fallback: tri alphabetique pour couvrir les anciens noms sans motif JourX.
+    idx = day_number - 1
+    if 0 <= idx < len(files):
+        return files[idx]
+    return None
+
+
+def apply_active_gpx_filename(filename: str) -> Dict[str, Any]:
+    src_path = os.path.join(GPX_DIR, filename)
+    if not os.path.exists(src_path):
+        raise HTTPException(status_code=404, detail="Fichier GPX non trouve")
+
+    with open(os.path.join(GPX_DIR, "active_gpx.json"), "w", encoding="utf-8") as f:
+        json.dump({"active": filename}, f)
+
+    import shutil
+    shutil.copy(src_path, GPX_FILE)
+    load_gpx_points()
+    update_equipes_fixed_positions_for_current_gpx()
+
+    return {"active": filename}
+
+
+def activate_gpx_for_event_date(target_date: Optional[date] = None) -> Dict[str, Any]:
+    """Active le GPX du jour evenement (Jour1..Jour5) selon la date."""
+    chosen_date = target_date or datetime.now().date()
+    event_day = get_event_day_for_date(chosen_date)
+    if event_day is None:
+        return {
+            "changed": False,
+            "reason": "event_day_out_of_range",
+            "event_day": None,
+            "target_date": chosen_date.isoformat(),
+            "active": None,
+        }
+
+    gpx_filename = find_gpx_for_day(event_day)
+    if not gpx_filename:
+        return {
+            "changed": False,
+            "reason": "missing_gpx_for_day",
+            "event_day": event_day,
+            "target_date": chosen_date.isoformat(),
+            "active": None,
+        }
+
+    current_active = None
+    active_path = os.path.join(GPX_DIR, "active_gpx.json")
+    if os.path.exists(active_path):
+        try:
+            with open(active_path, "r", encoding="utf-8") as f:
+                current_active = json.load(f).get("active")
+        except Exception:
+            current_active = None
+
+    if current_active == gpx_filename:
+        return {
+            "changed": False,
+            "reason": "already_active",
+            "event_day": event_day,
+            "target_date": chosen_date.isoformat(),
+            "active": gpx_filename,
+        }
+
+    apply_active_gpx_filename(gpx_filename)
+    return {
+        "changed": True,
+        "reason": "activated",
+        "event_day": event_day,
+        "target_date": chosen_date.isoformat(),
+        "active": gpx_filename,
+    }
 
 
 def normalize_gpx_meta_entry(value: Any) -> Dict[str, Optional[str]]:
@@ -427,6 +668,38 @@ def get_gpx_key_points() -> Dict[str, Dict[str, float]]:
         print(f"[ERROR] Erreur extraction points GPX: {e}")
         return {}
 
+
+def update_equipes_fixed_positions_for_current_gpx() -> None:
+    """Rafraichit les positions d'equipes liees aux points fixes du GPX (depart/arrivee/pause midi)."""
+    try:
+        key_points = get_gpx_key_points()
+        with sqlite3.connect(DB_FILE) as conn:
+            c = conn.cursor()
+            if "arrivee" in key_points:
+                lat = key_points["arrivee"]["latitude"]
+                lon = key_points["arrivee"]["longitude"]
+                c.execute(
+                    "UPDATE equipes SET latitude = ?, longitude = ? WHERE etat = ?",
+                    (lat, lon, "arrivée")
+                )
+            if "depart" in key_points:
+                lat = key_points["depart"]["latitude"]
+                lon = key_points["depart"]["longitude"]
+                c.execute(
+                    "UPDATE equipes SET latitude = ?, longitude = ? WHERE etat = ?",
+                    (lat, lon, "non partie")
+                )
+            if "pause_midi" in key_points:
+                lat = key_points["pause_midi"]["latitude"]
+                lon = key_points["pause_midi"]["longitude"]
+                c.execute(
+                    "UPDATE equipes SET latitude = ?, longitude = ? WHERE etat = ?",
+                    (lat, lon, "pause midi")
+                )
+            conn.commit()
+    except Exception as e:
+        print(f"[ERROR] Mise a jour coordonnees equipes via GPX: {e}")
+
 def save_password_hash(password_hash: str) -> None:
     """Sauvegarde le hash du mot de passe dans le fichier config"""
     config_data = load_config_data()
@@ -692,6 +965,44 @@ def init_db() -> None:
             )
             conn.commit()
 
+        # Periodes de suivi d'etat (pause / temps spi)
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS team_state_periods (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                equipe TEXT NOT NULL,
+                etat TEXT NOT NULL,
+                start_ts TEXT NOT NULL,
+                end_ts TEXT
+            )
+            """
+        )
+        c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_team_state_periods_equipe ON team_state_periods(equipe)"
+        )
+        c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_team_state_periods_window ON team_state_periods(start_ts, end_ts)"
+        )
+
+        # Evenements d'assistance
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS assistance_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                equipe TEXT NOT NULL,
+                assistance_type TEXT NOT NULL,
+                timestamp TEXT NOT NULL
+            )
+            """
+        )
+        c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_assistance_events_window ON assistance_events(timestamp)"
+        )
+        c.execute(
+            "CREATE INDEX IF NOT EXISTS idx_assistance_events_equipe ON assistance_events(equipe)"
+        )
+        conn.commit()
+
 
 def get_passages(limit: int = 100) -> List[Dict[str, Any]]:
     with sqlite3.connect(DB_FILE) as conn:
@@ -827,16 +1138,275 @@ def get_equipes() -> List[Dict[str, Any]]:
 def save_equipes(equipes: List[Dict[str, str]]) -> None:
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
+        c.execute("SELECT nom, couleur, etat, latitude, longitude, ville FROM equipes")
+        existing_rows = c.fetchall()
+        existing_by_name = {
+            row[0]: {
+                "couleur": normalize_team_color(row[1]),
+                "etat": row[2] or "non partie",
+                "latitude": row[3],
+                "longitude": row[4],
+                "ville": row[5] or "",
+            }
+            for row in existing_rows
+        }
+
         c.execute("DELETE FROM equipes")
         unique_equipes = []
         for e in equipes:
             if not any(ue["nom"] == e["nom"] for ue in unique_equipes):
                 unique_equipes.append(e)
+
+        assigned_colors: List[str] = []
+        rows_to_insert = []
+        for equipe in unique_equipes:
+            nom = (equipe.get("nom") or "").strip()
+            previous = existing_by_name.get(nom)
+            color = normalize_team_color(equipe.get("couleur"))
+
+            # Une nouvelle équipe ne doit pas récupérer le noir par défaut si aucune couleur métier n'est fournie.
+            if previous is None and color == "#000000":
+                color = ""
+
+            if not color and previous:
+                color = previous["couleur"]
+            if not color:
+                color = pick_next_team_color(assigned_colors + [row["couleur"] for row in existing_by_name.values()])
+
+            assigned_colors.append(color)
+
+            rows_to_insert.append(
+                (
+                    nom,
+                    color,
+                    normalize_etat(equipe.get("etat") or (previous["etat"] if previous else "non partie")),
+                    previous["latitude"] if previous else None,
+                    previous["longitude"] if previous else None,
+                    previous["ville"] if previous else "",
+                )
+            )
+
         c.executemany(
-            "INSERT INTO equipes (nom, couleur, etat) VALUES (?, ?, ?)",
-            [(e["nom"], e["couleur"], e.get("etat", "roule")) for e in unique_equipes]
+            "INSERT INTO equipes (nom, couleur, etat, latitude, longitude, ville) VALUES (?, ?, ?, ?, ?, ?)",
+            rows_to_insert
         )
         conn.commit()
+
+
+def close_open_state_periods(conn: sqlite3.Connection, equipe: str, closed_at_iso: str) -> None:
+    c = conn.cursor()
+    c.execute(
+        """
+        UPDATE team_state_periods
+        SET end_ts = ?
+        WHERE equipe = ? AND end_ts IS NULL AND etat IN ('pause', 'temps spi')
+        """,
+        (closed_at_iso, equipe),
+    )
+
+
+def open_state_period_if_needed(conn: sqlite3.Connection, equipe: str, etat: str, start_ts_iso: str) -> None:
+    tracked = normalize_etat(etat)
+    if tracked not in {"pause", "temps spi"}:
+        return
+
+    c = conn.cursor()
+    c.execute(
+        """
+        INSERT INTO team_state_periods (equipe, etat, start_ts, end_ts)
+        VALUES (?, ?, ?, NULL)
+        """,
+        (equipe, tracked, start_ts_iso),
+    )
+
+
+def record_team_state_change(conn: sqlite3.Connection, equipe: str, old_etat: str, new_etat: str, changed_at_iso: Optional[str] = None) -> None:
+    old_norm = normalize_etat(old_etat)
+    new_norm = normalize_etat(new_etat)
+    if old_norm == new_norm:
+        return
+
+    ts_iso = changed_at_iso or utc_now_iso()
+    close_open_state_periods(conn, equipe, ts_iso)
+    open_state_period_if_needed(conn, equipe, new_norm, ts_iso)
+
+
+def sync_open_state_periods_for_current_states() -> None:
+    """Au demarrage, aligne les periodes ouvertes avec les etats actuels pause/temps spi."""
+    now_iso = utc_now_iso()
+    with sqlite3.connect(DB_FILE) as conn:
+        c = conn.cursor()
+        c.execute("SELECT nom, etat FROM equipes")
+        rows = c.fetchall()
+        for nom, etat in rows:
+            state = normalize_etat(etat)
+            c.execute(
+                "SELECT id FROM team_state_periods WHERE equipe = ? AND end_ts IS NULL LIMIT 1",
+                (nom,),
+            )
+            open_row = c.fetchone()
+
+            if state in {"pause", "temps spi"}:
+                if open_row is None:
+                    open_state_period_if_needed(conn, nom, state, now_iso)
+            else:
+                if open_row is not None:
+                    close_open_state_periods(conn, nom, now_iso)
+        conn.commit()
+
+
+def overlap_seconds(start_dt: datetime, end_dt: datetime, window_start: datetime, window_end: datetime) -> float:
+    effective_start = max(start_dt, window_start)
+    effective_end = min(end_dt, window_end)
+    if effective_end <= effective_start:
+        return 0.0
+    return (effective_end - effective_start).total_seconds()
+
+
+def build_stats_report(selected_day: date) -> Dict[str, Any]:
+    settings = get_event_schedule_settings()
+    start_date_raw = settings.get("start_date") or ""
+    if not start_date_raw:
+        raise HTTPException(status_code=400, detail="Configurez d'abord la date du jour 1")
+
+    start_day = parse_iso_date(start_date_raw)
+    event_end_exclusive = start_day + timedelta(days=MAX_EVENT_DAYS)
+    selected_dt = datetime.combine(selected_day, datetime.min.time())
+    day_start = selected_dt
+    day_end = day_start + timedelta(days=1)
+    week_start = datetime.combine(start_day, datetime.min.time())
+    week_end = datetime.combine(event_end_exclusive, datetime.min.time())
+    now_dt = datetime.utcnow()
+
+    equipes = [e["nom"] for e in get_equipes()]
+    team_metrics: Dict[str, Dict[str, Any]] = {
+        nom: {
+            "equipe": nom,
+            "pause_minutes_day": 0,
+            "pause_minutes_week": 0,
+            "temps_spi_minutes_day": 0,
+            "temps_spi_minutes_week": 0,
+            "assistance_medicale_day": 0,
+            "assistance_medicale_week": 0,
+            "assistance_medicale_total": 0,
+            "assistance_velo_day": 0,
+            "assistance_velo_week": 0,
+            "assistance_velo_total": 0,
+        }
+        for nom in equipes
+    }
+
+    with sqlite3.connect(DB_FILE) as conn:
+        c = conn.cursor()
+
+        c.execute(
+            """
+            SELECT equipe, etat, start_ts, end_ts
+            FROM team_state_periods
+            WHERE etat IN ('pause', 'temps spi')
+              AND start_ts < ?
+              AND (end_ts IS NULL OR end_ts > ?)
+            """,
+            (week_end.isoformat(), week_start.isoformat()),
+        )
+        for equipe, etat, start_ts, end_ts in c.fetchall():
+            if equipe not in team_metrics:
+                continue
+            start_dt = parse_iso_datetime(start_ts)
+            if not start_dt:
+                continue
+            end_dt = parse_iso_datetime(end_ts) if end_ts else now_dt
+            if not end_dt:
+                end_dt = now_dt
+
+            week_seconds = overlap_seconds(start_dt, end_dt, week_start, week_end)
+            day_seconds = overlap_seconds(start_dt, end_dt, day_start, day_end)
+
+            if etat == "pause":
+                team_metrics[equipe]["pause_minutes_week"] += int(round(week_seconds / 60.0))
+                team_metrics[equipe]["pause_minutes_day"] += int(round(day_seconds / 60.0))
+            elif etat == "temps spi":
+                team_metrics[equipe]["temps_spi_minutes_week"] += int(round(week_seconds / 60.0))
+                team_metrics[equipe]["temps_spi_minutes_day"] += int(round(day_seconds / 60.0))
+
+        day_start_iso = day_start.isoformat()
+        day_end_iso = day_end.isoformat()
+        week_start_iso = week_start.isoformat()
+        week_end_iso = week_end.isoformat()
+
+        c.execute(
+            """
+            SELECT equipe, assistance_type,
+                   SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN 1 ELSE 0 END) as day_count,
+                   SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN 1 ELSE 0 END) as week_count,
+                   COUNT(*) as total_count
+            FROM assistance_events
+            GROUP BY equipe, assistance_type
+            """,
+            (day_start_iso, day_end_iso, week_start_iso, week_end_iso),
+        )
+        for equipe, assistance_type, day_count, week_count, total_count in c.fetchall():
+            if equipe not in team_metrics:
+                continue
+            kind = (assistance_type or "").strip().lower()
+            if kind in {"medical", "medicale", "médical", "médicale"}:
+                team_metrics[equipe]["assistance_medicale_day"] += int(day_count or 0)
+                team_metrics[equipe]["assistance_medicale_week"] += int(week_count or 0)
+                team_metrics[equipe]["assistance_medicale_total"] += int(total_count or 0)
+            elif kind in {"velo", "vélo", "bike", "reparation", "réparation"}:
+                team_metrics[equipe]["assistance_velo_day"] += int(day_count or 0)
+                team_metrics[equipe]["assistance_velo_week"] += int(week_count or 0)
+                team_metrics[equipe]["assistance_velo_total"] += int(total_count or 0)
+
+        c.execute(
+            """
+            SELECT assistance_type,
+                   SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN 1 ELSE 0 END) as day_count,
+                   SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN 1 ELSE 0 END) as week_count,
+                   COUNT(*) as total_count
+            FROM assistance_events
+            GROUP BY assistance_type
+            """,
+            (day_start_iso, day_end_iso, week_start_iso, week_end_iso),
+        )
+        global_counts = {
+            "assistance_medicale_day": 0,
+            "assistance_medicale_week": 0,
+            "assistance_medicale_total": 0,
+            "assistance_velo_day": 0,
+            "assistance_velo_week": 0,
+            "assistance_velo_total": 0,
+        }
+        for assistance_type, day_count, week_count, total_count in c.fetchall():
+            kind = (assistance_type or "").strip().lower()
+            if kind in {"medical", "medicale", "médical", "médicale"}:
+                global_counts["assistance_medicale_day"] += int(day_count or 0)
+                global_counts["assistance_medicale_week"] += int(week_count or 0)
+                global_counts["assistance_medicale_total"] += int(total_count or 0)
+            elif kind in {"velo", "vélo", "bike", "reparation", "réparation"}:
+                global_counts["assistance_velo_day"] += int(day_count or 0)
+                global_counts["assistance_velo_week"] += int(week_count or 0)
+                global_counts["assistance_velo_total"] += int(total_count or 0)
+
+    event_day = get_event_day_for_date(selected_day)
+    return {
+        "selected_date": selected_day.isoformat(),
+        "event_start_date": start_day.isoformat(),
+        "event_day": event_day,
+        "window": {
+            "start_date": start_day.isoformat(),
+            "end_date": (event_end_exclusive - timedelta(days=1)).isoformat(),
+            "max_days": MAX_EVENT_DAYS,
+        },
+        "per_team": [team_metrics[name] for name in sorted(team_metrics.keys(), key=lambda v: v.lower())],
+        "global": global_counts,
+    }
+
+
+def reset_statistics(conn: sqlite3.Connection) -> None:
+    c = conn.cursor()
+    c.execute("DELETE FROM team_state_periods")
+    c.execute("DELETE FROM assistance_events")
 
 # -----------------------------------
 # Purge automatique à minuit (cron)
@@ -844,6 +1414,7 @@ def save_equipes(equipes: List[Dict[str, str]]) -> None:
 def purge_passages() -> None:
     """Archive les passages du jour puis les supprime de la table principale"""
     try:
+        now_iso = utc_now_iso()
         with sqlite3.connect(DB_FILE) as conn:
             c = conn.cursor()
             # 1. Archiver tous les passages actuels
@@ -860,10 +1431,20 @@ def purge_passages() -> None:
             # 2. Supprimer les passages de la table principale
             c.execute("DELETE FROM passages")
 
+            # 2bis. Fermer les periodes pause/spi ouvertes a minuit.
+            c.execute("SELECT nom FROM equipes")
+            for (nom_equipe,) in c.fetchall():
+                close_open_state_periods(conn, nom_equipe, now_iso)
+
             # 3. Réinitialiser les états, positions et villes des équipes
             c.execute("UPDATE equipes SET etat = 'non partie', latitude = NULL, longitude = NULL, ville = NULL")
             conn.commit()
-        print(f"[{datetime.now()}] Purge quotidienne : {archived_count} passages archivés et supprimés, états remis à 'non partie'.")
+
+        gpx_rotation = activate_gpx_for_event_date(datetime.now().date())
+        print(
+            f"[{datetime.now()}] Purge quotidienne : {archived_count} passages archives et supprimes, "
+            f"etats remis a 'non partie', switch GPX={gpx_rotation}."
+        )
     except Exception as e:
         print(f"Erreur lors de la purge des passages : {e}")
 
@@ -892,6 +1473,15 @@ async def startup_event():
     init_db()
     # Charger points GPX
     load_gpx_points()
+    # Aligner les periodes ouvertes de stats avec les etats courants
+    sync_open_state_periods_for_current_states()
+    # Appliquer automatiquement le GPX du jour evenement si configure
+    try:
+        auto_switch = activate_gpx_for_event_date(datetime.now().date())
+        if auto_switch.get("changed"):
+            print(f"[Startup] GPX actif auto -> {auto_switch.get('active')} (jour {auto_switch.get('event_day')})")
+    except Exception as e:
+        print(f"[Startup] Impossible d'activer automatiquement le GPX du jour: {e}")
     # Start Redis publisher/subscriber (only if enabled)
     global redis_pub, _redis_listener_task
     if REDIS_ENABLED:
@@ -1295,6 +1885,14 @@ class ContactsUpdate(BaseModel):
     tel_infirmerie: str = ""
     tel_velo: str = ""
 
+
+class HomepageSettingsUpdate(BaseModel):
+    zapping_url: str = ""
+
+
+class EventScheduleSettingsUpdate(BaseModel):
+    start_date: str = ""
+
 @app.get("/api/contacts")
 def api_get_contacts() -> Dict[str, str]:
     """Récupère les contacts GG depuis config.json"""
@@ -1324,6 +1922,21 @@ def api_update_contacts(data: ContactsUpdate, _: str = Depends(require_auth)) ->
         print(f"Erreur sauvegarde contacts : {e}")
         raise HTTPException(status_code=500, detail="Erreur interne serveur")
 
+
+@app.get("/api/homepage_settings")
+def api_get_homepage_settings() -> Dict[str, str]:
+    """Récupère les réglages de la page d'accueil."""
+    return get_homepage_settings()
+
+
+@app.post("/api/homepage_settings")
+def api_update_homepage_settings(data: HomepageSettingsUpdate, _: str = Depends(require_auth)) -> Dict[str, Any]:
+    """Sauvegarde les réglages de la page d'accueil."""
+    return {
+        "status": "ok",
+        **save_homepage_settings(data.zapping_url),
+    }
+
 # Config complète
 @app.get("/api/config")
 def api_get_config() -> Dict[str, str]:
@@ -1332,9 +1945,40 @@ def api_get_config() -> Dict[str, str]:
     if config_data:
         return {
             "tel_infirmerie": config_data.get("tel_infirmerie", ""),
-            "tel_velo": config_data.get("tel_velo", "")
+            "tel_velo": config_data.get("tel_velo", ""),
+            "zapping_url": get_homepage_settings().get("zapping_url", ""),
+            "event_start_date": get_event_schedule_settings().get("start_date", ""),
         }
-    return {"tel_infirmerie": "", "tel_velo": ""}
+    return {
+        "tel_infirmerie": "",
+        "tel_velo": "",
+        "zapping_url": get_homepage_settings().get("zapping_url", ""),
+        "event_start_date": get_event_schedule_settings().get("start_date", ""),
+    }
+
+
+@app.get("/api/event_schedule_settings")
+def api_get_event_schedule_settings(_: str = Depends(require_auth)) -> Dict[str, Any]:
+    return get_event_schedule_settings()
+
+
+@app.post("/api/event_schedule_settings")
+def api_update_event_schedule_settings(data: EventScheduleSettingsUpdate, _: str = Depends(require_auth)) -> Dict[str, Any]:
+    settings = save_event_schedule_settings(data.start_date)
+    auto_switch = activate_gpx_for_event_date(datetime.now().date())
+    return {
+        "status": "ok",
+        **settings,
+        "gpx_auto_switch": auto_switch,
+    }
+
+
+@app.get("/api/stats")
+def api_get_stats(date_value: Optional[str] = Query(None, alias="date"), _: str = Depends(require_auth)) -> Dict[str, Any]:
+    selected_day = datetime.now().date()
+    if date_value:
+        selected_day = parse_iso_date(date_value)
+    return build_stats_report(selected_day)
 
 
 @app.get("/api/gpx_poi_settings")
@@ -1431,13 +2075,13 @@ async def api_update_etat_equipe(
         with sqlite3.connect(DB_FILE) as conn:
             c = conn.cursor()
             
-            # Récupérer le nom et la couleur de l'équipe
-            c.execute("SELECT nom, couleur FROM equipes WHERE id = ?", (data.equipe_id,))
+            # Récupérer le nom, la couleur et l'etat actuel de l'equipe
+            c.execute("SELECT nom, couleur, etat FROM equipes WHERE id = ?", (data.equipe_id,))
             row = c.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Équipe non trouvée")
             
-            nom_equipe, couleur = row
+            nom_equipe, couleur, etat_actuel = row
             
             # Mapper les états de l'interface anim vers les états de la base
             etat_map = {
@@ -1447,6 +2091,9 @@ async def api_update_etat_equipe(
                 'roulant': 'roule'
             }
             etat_db = normalize_etat(etat_map.get(data.etat, data.etat))
+            changed_at_iso = data.timestamp if parse_iso_datetime(data.timestamp) else utc_now_iso()
+
+            record_team_state_change(conn, nom_equipe, etat_actuel, etat_db, changed_at_iso)
 
             lat = data.position.get("lat")
             lon = data.position.get("lng")
@@ -1512,16 +2159,23 @@ async def api_assistance(data: AssistanceRequest) -> Dict[str, Any]:
 
         with sqlite3.connect(DB_FILE) as conn:
             c = conn.cursor()
-            c.execute("SELECT nom, couleur FROM equipes WHERE id = ?", (data.equipe_id,))
+            c.execute("SELECT nom, couleur, etat FROM equipes WHERE id = ?", (data.equipe_id,))
             row = c.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Équipe non trouvée")
 
-            nom_equipe, couleur = row
+            nom_equipe, couleur, etat_actuel = row
+            event_ts_iso = data.timestamp if parse_iso_datetime(data.timestamp) else utc_now_iso()
+
+            record_team_state_change(conn, nom_equipe, etat_actuel, etat_assistance, event_ts_iso)
 
             c.execute(
                 "UPDATE equipes SET etat = ?, latitude = ?, longitude = ?, ville = ? WHERE id = ?",
                 (etat_assistance, lat, lon, ville, data.equipe_id)
+            )
+            c.execute(
+                "INSERT INTO assistance_events (equipe, assistance_type, timestamp) VALUES (?, ?, ?)",
+                (nom_equipe, assistance_type, event_ts_iso),
             )
             conn.commit()
 
@@ -1562,6 +2216,7 @@ async def api_set_etat(
 
         # Mettre à jour l'état seulement si différent
         if etat != etat_actuel:
+            record_team_state_change(conn, nom, etat_actuel, etat, utc_now_iso())
             c.execute("UPDATE equipes SET etat = ? WHERE nom = ?", (etat, nom))
             
             # Mettre à jour la position GPS selon l'état
@@ -1600,6 +2255,10 @@ async def api_add_passage(
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
         timestamp = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+        c.execute("SELECT etat FROM equipes WHERE nom = ?", (p.equipe,))
+        equipe_row = c.fetchone()
+        etat_actuel = equipe_row[0] if equipe_row and equipe_row[0] else "non partie"
+
         c.execute(
             """
             SELECT 1 FROM passages
@@ -1621,6 +2280,8 @@ async def api_add_passage(
             (p.equipe, p.latitude, p.longitude, timestamp, p.observateur, ville),
         )
         last_id = c.lastrowid
+
+        record_team_state_change(conn, p.equipe, etat_actuel, "roule", timestamp)
         
         # Mettre à jour la position GPS de l'équipe pour réactivité instantanée
         c.execute(
@@ -1957,16 +2618,21 @@ async def api_upload_gpx(file: UploadFile = File(...), _: str = Depends(require_
 async def reset_passages(_: str = Depends(require_auth)):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    
+
     # Supprime tous les passages
     c.execute("DELETE FROM passages")
-    
-    # Réinitialise tous les états d'équipes à "non partie"
-        # Réinitialise tous les états, positions et villes d'équipes
+
+    # Reinitialise les statistiques de l'evenement
+    reset_statistics(conn)
+
+    # Reinitialise tous les etats, positions et villes d'equipes
     c.execute("UPDATE equipes SET etat = 'non partie', latitude = NULL, longitude = NULL, ville = NULL")
-    
+
     conn.commit()
     conn.close()
+
+    gpx_rotation = activate_gpx_for_event_date(datetime.now().date())
+    await _refresh_key_point_villes()
 
     payload = {"type": "reset_passages"}
     try:
@@ -1979,7 +2645,7 @@ async def reset_passages(_: str = Depends(require_auth)):
     await manager.broadcast_json(payload)
     await broadcast_summary()
 
-    return {"status": "ok"}
+    return {"status": "ok", "stats_reset": True, "gpx_auto_switch": gpx_rotation}
     
 @app.get("/api/gpx_files")
 def api_list_gpx_files():
@@ -2078,49 +2744,7 @@ async def api_set_active_gpx(data: dict, _: str = Depends(require_auth)):
     if not filename or not os.path.exists(src_path):
         raise HTTPException(status_code=404, detail="Fichier GPX non trouvé")
 
-    # Enregistre comme actif
-    with open(os.path.join(GPX_DIR, "active_gpx.json"), "w") as f:
-        json.dump({"active": filename}, f)
-
-    # Copie le GPX actif vers le fichier attendu par load_gpx_points()
-    import shutil
-    shutil.copy(src_path, GPX_FILE)
-
-    # Recharge les points GPX
-    load_gpx_points()
-
-    # Met à jour les coordonnées des équipes selon leur état avec les nouveaux points
-    try:
-        key_points = get_gpx_key_points()
-        with sqlite3.connect(DB_FILE) as conn:
-            c = conn.cursor()
-            if "arrivee" in key_points:
-                lat = key_points["arrivee"]["latitude"]
-                lon = key_points["arrivee"]["longitude"]
-                c.execute(
-                    "UPDATE equipes SET latitude = ?, longitude = ? WHERE etat = ?",
-                    (lat, lon, "arrivée")
-                )
-                print(f"[GPX] Coordonnées des équipes 'arrivée' mises à jour vers {lat}, {lon}")
-            if "depart" in key_points:
-                lat = key_points["depart"]["latitude"]
-                lon = key_points["depart"]["longitude"]
-                c.execute(
-                    "UPDATE equipes SET latitude = ?, longitude = ? WHERE etat = ?",
-                    (lat, lon, "non partie")
-                )
-                print(f"[GPX] Coordonnées des équipes 'non partie' mises à jour vers {lat}, {lon}")
-            if "pause_midi" in key_points:
-                lat = key_points["pause_midi"]["latitude"]
-                lon = key_points["pause_midi"]["longitude"]
-                c.execute(
-                    "UPDATE equipes SET latitude = ?, longitude = ? WHERE etat = ?",
-                    (lat, lon, "pause midi")
-                )
-                print(f"[GPX] Coordonnées des équipes 'pause midi' mises à jour vers {lat}, {lon}")
-            conn.commit()
-    except Exception as e:
-        print(f"[ERROR] Mise à jour coordonnées: {e}")
+    apply_active_gpx_filename(filename)
 
     # Rafraîchir le cache des villes des points clés
     await _refresh_key_point_villes()

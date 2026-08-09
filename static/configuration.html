@@ -580,6 +580,21 @@
     vertical-align: middle;
   }
 
+  .gpx-day-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.5em;
+    padding: 0.2em 0.55em;
+    border-radius: 999px;
+    background: #2c7be5;
+    color: #fff;
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
   .gpx-buttons {
     display: flex;
     gap: 0.5em;
@@ -591,6 +606,31 @@
     line-height: 1;
     min-width: 2.4em;
     margin: 0;
+  }
+
+  .stats-meta {
+    color: var(--text-secondary);
+    margin: 0.5em 0 1em;
+    font-size: 0.9em;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75em;
+    margin-bottom: 1em;
+  }
+
+  .stats-card {
+    background: rgba(52, 152, 219, 0.08);
+    border: 1px solid rgba(52, 152, 219, 0.18);
+    border-radius: 10px;
+    padding: 0.65em 0.8em;
+  }
+
+  .stats-card strong {
+    display: block;
+    margin-bottom: 0.35em;
   }
 
   /* === FOOTER === */
@@ -871,6 +911,12 @@
       padding: 0.18em 0.45em;
     }
 
+    .gpx-day-badge {
+      margin-left: 0.35em;
+      font-size: 0.68em;
+      padding: 0.18em 0.45em;
+    }
+
     .poi-grid {
       grid-template-columns: 1fr;
     }
@@ -928,7 +974,7 @@
     </h1>
 
     <!-- Équipes -->
-    <section>
+    <section id="section-equipes">
       <div class="section-header" onclick="toggleSection(this)">
         <h2>👥 Équipes</h2>
         <span class="section-toggle">▼</span>
@@ -954,17 +1000,25 @@
     </section>
 
     <!-- GPX -->
-    <section>
+    <section id="section-gpx-files">
       <div class="section-header" onclick="toggleSection(this)">
         <h2>🗺️ <span class="gradient-text">Fichiers GPX</span></h2>
         <span class="section-toggle">▼</span>
       </div>
       <div class="section-content">
+        <p style="color: var(--text-secondary); margin-bottom: 0.5em;">
+          Planification J1 à J5: renseignez la date du Jour 1. Le GPX du jour est activé automatiquement à minuit pendant la réinitialisation quotidienne.
+        </p>
+        <div class="form-group">
+          <label for="event-start-date">Date du Jour 1</label>
+          <input type="date" id="event-start-date" />
+        </div>
+        <button id="btn-save-event-schedule" class="btn-primary">💾 Enregistrer la date de départ</button>
         <ul id="gpx-list"></ul>
       </div>
     </section>
 
-    <section>
+    <section id="section-gpx-upload">
       <div class="section-header" onclick="toggleSection(this)">
         <h2>📤 Uploader un GPX</h2>
         <span class="section-toggle">▼</span>
@@ -978,7 +1032,7 @@
       </div>
     </section>
 
-    <section>
+    <section id="section-gpx-poi">
       <div class="section-header" onclick="toggleSection(this)">
         <h2>🧭 Points d'intérêt GPX</h2>
         <span class="section-toggle">▼</span>
@@ -1035,7 +1089,68 @@
     </section>
 
     <!-- Contacts urgents -->
-    <section>
+    <section id="section-zapping" hidden>
+      <div class="section-header" onclick="toggleSection(this)">
+        <h2>🎥 Lien Zapping</h2>
+        <span class="section-toggle">▼</span>
+      </div>
+      <div class="section-content">
+        <p style="color: var(--text-secondary);">
+          Modifiez le lien du bouton Zapping affiché sur la page d'accueil de la Route 62.
+        </p>
+        <div class="form-group">
+          <label for="zapping-url">Lien partagé</label>
+          <input
+            type="text"
+            id="zapping-url"
+            placeholder="https://..."
+            inputmode="url"
+            autocomplete="off"
+          />
+        </div>
+        <button id="btn-save-zapping" class="btn-primary">💾 Enregistrer le lien Zapping</button>
+      </div>
+    </section>
+
+    <section id="section-stats">
+      <div class="section-header" onclick="toggleSection(this)">
+        <h2>📊 Statistiques équipes</h2>
+        <span class="section-toggle">▼</span>
+      </div>
+      <div class="section-content">
+        <p style="color: var(--text-secondary);">
+          Suivi des durées en pause et en temps spi, et des appels d'assistance médicale/vélo par équipe.
+        </p>
+        <div class="form-group">
+          <label for="stats-date">Jour à analyser</label>
+          <input type="date" id="stats-date" />
+        </div>
+        <button id="btn-load-stats" class="btn-secondary">🔄 Actualiser les statistiques</button>
+        <p id="stats-meta" class="stats-meta"></p>
+        <div id="stats-global" class="stats-grid"></div>
+
+        <div class="table-scroll">
+          <table id="stats-table">
+            <thead>
+              <tr>
+                <th>Équipe</th>
+                <th>Pause (jour)</th>
+                <th>Pause (5 jours)</th>
+                <th>SPI (jour)</th>
+                <th>SPI (5 jours)</th>
+                <th>Assist. médicale (jour/5j/total)</th>
+                <th>Assist. vélo (jour/5j/total)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="7" style="color: var(--text-secondary);">Aucune statistique chargée.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-contacts">
       <div class="section-header" onclick="toggleSection(this)">
         <h2>📞 Contacts urgents</h2>
         <span class="section-toggle">▼</span>
@@ -1067,21 +1182,21 @@
     </section>
 
     <!-- Réinitialisation -->
-    <section>
+    <section id="section-reset">
       <div class="section-header" onclick="toggleSection(this)">
         <h2>🔄 Réinitialisation</h2>
         <span class="section-toggle">▼</span>
       </div>
       <div class="section-content">
         <p style="color: var(--text-secondary);">
-          ⚠️ Cette action supprimera tous les points de passage et remettra toutes les équipes en "non partie".
+          ⚠️ Cette action supprimera tous les points de passage, remettra toutes les équipes en "non partie" et remettra les statistiques à zéro.
         </p>
         <button id="btn-reset-passages" class="btn-danger">🗑️ Réinitialiser les passages</button>
       </div>
     </section>
 
     <!-- Changement mot de passe -->
-    <section>
+    <section id="section-security">
       <div class="section-header" onclick="toggleSection(this)">
         <h2>🔐 <span class="gradient-text">Sécurité</span></h2>
         <span class="section-toggle">▼</span>
@@ -1142,12 +1257,53 @@
   let poiAutoSyncTimer = null;
   let poiAutoSyncInFlight = false;
   let poiAutoSyncQueued = false;
+  let currentRouteSlug = '';
+  let eventStartDate = '';
   const poiAddressCache = new Map();
   const poiAddressPending = new Set();
   const poiAliases = {
     navigation: [],
     repas_midi: []
   };
+  const teamColorPalette = [
+    '#ff0000',
+    '#0000ff',
+    '#00aa00',
+    '#ffa500',
+    '#8e44ad',
+    '#16a085',
+    '#e91e63',
+    '#f1c40f'
+  ];
+
+  function reorderConfigurationSections() {
+    const container = document.querySelector('.container');
+    if (!container) return;
+    const messageNode = document.getElementById('message');
+
+    const orderedSectionIds = [
+      'section-equipes',
+      'section-gpx-files',
+      'section-gpx-upload',
+      'section-gpx-poi',
+      'section-contacts',
+      'section-zapping',
+      'section-stats',
+      'section-reset',
+      'section-security',
+    ];
+
+    orderedSectionIds.forEach((id) => {
+      const section = document.getElementById(id);
+      if (section) {
+        if (messageNode && messageNode.parentElement === container) {
+          container.insertBefore(section, messageNode);
+        } else {
+          container.appendChild(section);
+        }
+      }
+    });
+  }
 
   function setPoiSyncStatus(text, state = "") {
     const el = document.getElementById('poi-sync-status');
@@ -1281,7 +1437,19 @@
     });
   }
 
-  function construireLigneEquipe(equipe = {nom: "", couleur: "#000000"}) {
+  function getNextEquipeColor() {
+    const usedColors = Array.from(document.querySelectorAll('#equipes-table tbody input[type="color"]'))
+      .map((input) => (input.value || '').toUpperCase());
+
+    const availableColor = teamColorPalette.find((color) => !usedColors.includes(color.toUpperCase()));
+    if (availableColor) {
+      return availableColor;
+    }
+
+    return teamColorPalette[usedColors.length % teamColorPalette.length];
+  }
+
+  function construireLigneEquipe(equipe = {nom: "", couleur: ""}) {
     const tr = document.createElement("tr");
 
     const tdNom = document.createElement("td");
@@ -1295,7 +1463,7 @@
     const tdCouleur = document.createElement("td");
     const inputColor = document.createElement("input");
     inputColor.type = "color";
-    inputColor.value = equipe.couleur || "#000000";
+    inputColor.value = equipe.couleur || getNextEquipeColor();
     tdCouleur.appendChild(inputColor);
     tr.appendChild(tdCouleur);
 
@@ -1306,7 +1474,10 @@
     btnDelete.className = "btn-delete";
     btnDelete.title = "Supprimer cette équipe";
     btnDelete.textContent = "🗑️";
-    btnDelete.addEventListener("click", () => tr.remove());
+    btnDelete.addEventListener("click", () => {
+      tr.remove();
+      refreshOpenSectionHeights();
+    });
     tdDelete.appendChild(btnDelete);
     tr.appendChild(tdDelete);
 
@@ -1321,6 +1492,7 @@
       const tbody = document.querySelector("#equipes-table tbody");
       tbody.innerHTML = "";
       equipes.forEach(equipe => tbody.appendChild(construireLigneEquipe(equipe)));
+      refreshOpenSectionHeights();
     } catch (e) {
       afficherMessage("Erreur chargement équipes", "error");
       console.error(e);
@@ -1425,11 +1597,13 @@
   }
 
   async function resetPassages() {
-    if (!confirm("Êtes-vous sûr de vouloir réinitialiser tous les passages et remettre toutes les équipes en 'non partie' ?")) return;
+    if (!confirm("Êtes-vous sûr de vouloir réinitialiser tous les passages, remettre toutes les équipes en 'non partie' et remettre les statistiques à zéro ?")) return;
     try {
       const res = await fetch(`${apiBase}/reset_passages`, { method: "POST" });
       if (!res.ok) throw new Error("Erreur réinitialisation");
-      afficherMessage("Passages et états des équipes réinitialisés !");
+      afficherMessage("Passages, états et statistiques réinitialisés !");
+      await chargerStatistiques();
+      await chargerListeGPX();
     } catch (e) {
       afficherMessage("Erreur lors de la réinitialisation", "error");
       console.error(e);
@@ -1446,6 +1620,274 @@
       }
     } catch (e) {
       console.error("Erreur chargement contacts:", e);
+    }
+  }
+
+  async function chargerRouteContext() {
+    try {
+      const res = await fetch(`${apiBase}/route_context`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Erreur chargement contexte route');
+      const data = await res.json();
+      currentRouteSlug = String(data?.route_slug || '').toLowerCase();
+
+      const zappingSection = document.getElementById('section-zapping');
+      if (zappingSection) {
+        zappingSection.hidden = currentRouteSlug !== 'route62';
+      }
+      refreshOpenSectionHeights();
+    } catch (e) {
+      currentRouteSlug = '';
+      console.error('Erreur chargement route context:', e);
+    }
+  }
+
+  async function chargerHomepageSettings() {
+    if (currentRouteSlug !== 'route62') {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${apiBase}/homepage_settings`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Erreur chargement lien Zapping');
+      const data = await res.json();
+      document.getElementById('zapping-url').value = data?.zapping_url || '';
+    } catch (e) {
+      console.error('Erreur chargement lien Zapping:', e);
+      afficherMessage('Erreur chargement lien Zapping', 'error');
+    }
+  }
+
+  async function saveHomepageSettings() {
+    if (currentRouteSlug !== 'route62') {
+      return;
+    }
+
+    const zappingUrl = document.getElementById('zapping-url').value.trim();
+
+    try {
+      const res = await fetch(`${apiBase}/homepage_settings`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ zapping_url: zappingUrl })
+      });
+      if (!res.ok) {
+        let msg = 'Erreur sauvegarde lien Zapping';
+        try {
+          const errData = await res.json();
+          if (errData?.detail) msg = errData.detail;
+        } catch (_) {
+          // ignore parsing error
+        }
+        throw new Error(msg);
+      }
+
+      const data = await res.json();
+      document.getElementById('zapping-url').value = data?.zapping_url || zappingUrl;
+      afficherMessage('Lien Zapping enregistré !');
+    } catch (e) {
+      console.error(e);
+      afficherMessage(e.message || 'Erreur sauvegarde lien Zapping', 'error');
+    }
+  }
+
+  function formatMinutesLabel(minutesValue) {
+    const minutes = Number(minutesValue || 0);
+    const safe = Number.isFinite(minutes) ? Math.max(0, Math.round(minutes)) : 0;
+    const h = Math.floor(safe / 60);
+    const m = safe % 60;
+    if (h <= 0) return `${m} min`;
+    return `${h} h ${m.toString().padStart(2, '0')}`;
+  }
+
+  async function chargerEventScheduleSettings() {
+    try {
+      const res = await fetch(`${apiBase}/event_schedule_settings`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Erreur chargement planification GPX');
+      const data = await res.json();
+      const input = document.getElementById('event-start-date');
+      eventStartDate = (data?.start_date || '').trim();
+      if (input) {
+        input.value = eventStartDate;
+      }
+    } catch (e) {
+      console.error(e);
+      afficherMessage('Erreur chargement date Jour 1', 'error');
+    }
+  }
+
+  async function saveEventScheduleSettings() {
+    const startDate = (document.getElementById('event-start-date')?.value || '').trim();
+    if (!startDate) {
+      afficherMessage('Renseignez la date du Jour 1.', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${apiBase}/event_schedule_settings`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ start_date: startDate })
+      });
+      if (!res.ok) {
+        let msg = 'Erreur sauvegarde date Jour 1';
+        try {
+          const err = await res.json();
+          if (err?.detail) msg = err.detail;
+        } catch (_) {
+          // ignore
+        }
+        throw new Error(msg);
+      }
+
+      const payload = await res.json();
+      afficherMessage('Date du Jour 1 enregistrée. Rotation GPX automatique active.');
+      if (payload?.start_date) {
+        eventStartDate = payload.start_date;
+        document.getElementById('event-start-date').value = payload.start_date;
+      }
+      await chargerListeGPX();
+      await chargerStatistiques();
+    } catch (e) {
+      console.error(e);
+      afficherMessage(e.message || 'Erreur sauvegarde date Jour 1', 'error');
+    }
+  }
+
+  function extractPeleDayNumberFromFilename(filename) {
+    const match = (filename || '').match(/jour\s*([1-5])\b/i);
+    if (!match) return null;
+    const num = Number(match[1]);
+    return Number.isFinite(num) ? num : null;
+  }
+
+  function getGpxDisplayOrderMeta(filename, activeName) {
+    const isActive = filename === activeName;
+    const dayNumber = extractPeleDayNumberFromFilename(filename);
+    const hasDay = Number.isFinite(dayNumber);
+    return {
+      isActive,
+      hasDay,
+      dayNumber: hasDay ? dayNumber : Number.POSITIVE_INFINITY,
+      filename,
+    };
+  }
+
+  function getActivationDateLabelForFilename(filename) {
+    if (!eventStartDate) {
+      return 'Date Jour 1 non définie';
+    }
+
+    const dayNumber = extractPeleDayNumberFromFilename(filename);
+    if (!dayNumber) {
+      return 'Aucune activation auto (nom sans Jour1..Jour5)';
+    }
+
+    const start = new Date(`${eventStartDate}T00:00:00`);
+    if (Number.isNaN(start.getTime())) {
+      return 'Date Jour 1 invalide';
+    }
+
+    const activationDate = new Date(start);
+    activationDate.setDate(start.getDate() + (dayNumber - 1));
+    return activationDate.toLocaleDateString('fr-FR', {
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  }
+
+  function renderGlobalStats(global) {
+    const container = document.getElementById('stats-global');
+    if (!container) return;
+
+    const medicalDay = Number(global?.assistance_medicale_day || 0);
+    const medicalWeek = Number(global?.assistance_medicale_week || 0);
+    const medicalTotal = Number(global?.assistance_medicale_total || 0);
+    const veloDay = Number(global?.assistance_velo_day || 0);
+    const veloWeek = Number(global?.assistance_velo_week || 0);
+    const veloTotal = Number(global?.assistance_velo_total || 0);
+
+    container.innerHTML = `
+      <div class="stats-card">
+        <strong>🚑 Assistance médicale</strong>
+        Jour: ${medicalDay}<br>
+        5 jours: ${medicalWeek}<br>
+        Total: ${medicalTotal}
+      </div>
+      <div class="stats-card">
+        <strong>🔧 Assistance vélo</strong>
+        Jour: ${veloDay}<br>
+        5 jours: ${veloWeek}<br>
+        Total: ${veloTotal}
+      </div>
+    `;
+  }
+
+  function renderTeamStatsTable(perTeam) {
+    const tbody = document.querySelector('#stats-table tbody');
+    if (!tbody) return;
+
+    if (!Array.isArray(perTeam) || perTeam.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color: var(--text-secondary);">Aucune donnée équipe.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = perTeam.map((row) => {
+      const med = `${Number(row.assistance_medicale_day || 0)}/${Number(row.assistance_medicale_week || 0)}/${Number(row.assistance_medicale_total || 0)}`;
+      const velo = `${Number(row.assistance_velo_day || 0)}/${Number(row.assistance_velo_week || 0)}/${Number(row.assistance_velo_total || 0)}`;
+      return `
+        <tr>
+          <td><strong>${row.equipe || '-'}</strong></td>
+          <td>${formatMinutesLabel(row.pause_minutes_day)}</td>
+          <td>${formatMinutesLabel(row.pause_minutes_week)}</td>
+          <td>${formatMinutesLabel(row.temps_spi_minutes_day)}</td>
+          <td>${formatMinutesLabel(row.temps_spi_minutes_week)}</td>
+          <td>${med}</td>
+          <td>${velo}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function chargerStatistiques() {
+    const statsDateInput = document.getElementById('stats-date');
+    const selectedDate = (statsDateInput?.value || new Date().toISOString().slice(0, 10)).trim();
+
+    try {
+      const res = await fetch(`${apiBase}/stats?date=${encodeURIComponent(selectedDate)}`, { cache: 'no-store' });
+      if (!res.ok) {
+        let msg = 'Erreur chargement statistiques';
+        try {
+          const err = await res.json();
+          if (err?.detail) msg = err.detail;
+        } catch (_) {
+          // ignore
+        }
+        throw new Error(msg);
+      }
+
+      const data = await res.json();
+      if (statsDateInput && data?.selected_date) {
+        statsDateInput.value = data.selected_date;
+      }
+
+      const meta = document.getElementById('stats-meta');
+      if (meta) {
+        const eventDayLabel = data?.event_day ? `Jour ${data.event_day}` : 'Hors fenêtre J1-J5';
+        meta.textContent = `Date analysée: ${data?.selected_date || selectedDate} | ${eventDayLabel} | Fenêtre: ${data?.window?.start_date || '-'} -> ${data?.window?.end_date || '-'}`;
+      }
+
+      renderGlobalStats(data?.global || {});
+      renderTeamStatsTable(data?.per_team || []);
+      refreshOpenSectionHeights();
+    } catch (e) {
+      console.error(e);
+      renderGlobalStats({});
+      renderTeamStatsTable([]);
+      const meta = document.getElementById('stats-meta');
+      if (meta) meta.textContent = e.message || 'Erreur statistiques';
+      afficherMessage(e.message || 'Erreur chargement statistiques', 'error');
     }
   }
 
@@ -1484,9 +1926,19 @@
       }
 
       const sortedFiles = [...data.files].sort((a, b) => {
-        if (a === data.active) return -1;
-        if (b === data.active) return 1;
-        return a.localeCompare(b, 'fr', { sensitivity: 'base' });
+        const ma = getGpxDisplayOrderMeta(a, data.active);
+        const mb = getGpxDisplayOrderMeta(b, data.active);
+
+        if (ma.isActive !== mb.isActive) {
+          return ma.isActive ? -1 : 1;
+        }
+        if (ma.hasDay !== mb.hasDay) {
+          return ma.hasDay ? -1 : 1;
+        }
+        if (ma.dayNumber !== mb.dayNumber) {
+          return ma.dayNumber - mb.dayNumber;
+        }
+        return ma.filename.localeCompare(mb.filename, 'fr', { sensitivity: 'base' });
       });
 
       sortedFiles.forEach(f => {
@@ -1498,6 +1950,14 @@
         const title = document.createElement("span");
         title.className = "gpx-name-title";
         title.textContent = f;
+
+        const dayNumber = extractPeleDayNumberFromFilename(f);
+        if (dayNumber) {
+          const dayBadge = document.createElement("span");
+          dayBadge.className = "gpx-day-badge";
+          dayBadge.textContent = `Jour ${dayNumber}`;
+          title.appendChild(dayBadge);
+        }
 
         const importedAtRaw = data?.meta?.[f]?.imported_at || "";
         const importedAt = importedAtRaw ? new Date(importedAtRaw) : null;
@@ -1511,25 +1971,15 @@
             })
           : "Date d'import inconnue";
 
-        const gpxCreatedAtRaw = data?.meta?.[f]?.gpx_created_at || "";
-        const gpxCreatedAt = gpxCreatedAtRaw ? new Date(gpxCreatedAtRaw) : null;
-        const gpxCreatedAtLabel = gpxCreatedAt && !Number.isNaN(gpxCreatedAt.getTime())
-          ? gpxCreatedAt.toLocaleString('fr-FR', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })
-          : "Date de création GPX inconnue";
+        const activationLabel = getActivationDateLabelForFilename(f);
 
         const importedAtEl = document.createElement("small");
         importedAtEl.className = "gpx-date-line";
         importedAtEl.textContent = `Import serveur : ${importedAtLabel}`;
 
-        const gpxCreatedAtEl = document.createElement("small");
-        gpxCreatedAtEl.className = "gpx-date-line";
-        gpxCreatedAtEl.textContent = `Créé GPX : ${gpxCreatedAtLabel}`;
+        const gpxActivationEl = document.createElement("small");
+        gpxActivationEl.className = "gpx-date-line";
+        gpxActivationEl.textContent = `Activation prévue : ${activationLabel}`;
 
         if (f === data.active) {
           li.classList.add("gpx-item-active");
@@ -1543,7 +1993,7 @@
 
         span.appendChild(title);
         span.appendChild(importedAtEl);
-        span.appendChild(gpxCreatedAtEl);
+        span.appendChild(gpxActivationEl);
         li.appendChild(span);
 
         const btnContainer = document.createElement("div");
@@ -2326,6 +2776,9 @@
   document.getElementById("btn-upload-gpx").addEventListener("click", uploadGPX);
   document.getElementById("btn-reset-passages").addEventListener("click", resetPassages);
   document.getElementById("btn-save-contacts").addEventListener("click", saveContacts);
+  document.getElementById("btn-save-zapping").addEventListener("click", saveHomepageSettings);
+  document.getElementById("btn-save-event-schedule").addEventListener("click", saveEventScheduleSettings);
+  document.getElementById("btn-load-stats").addEventListener("click", chargerStatistiques);
   document.getElementById("btn-poi-add-navigation").addEventListener("click", () => {
     const input = document.getElementById('poi-add-navigation');
     addAliasKeyword('navigation', input.value);
@@ -2369,6 +2822,7 @@
   document.getElementById("form-change-password").addEventListener("submit", changePassword);
   document.getElementById("btn-add-equipe").addEventListener("click", () => {
     document.querySelector("#equipes-table tbody").appendChild(construireLigneEquipe());
+    refreshOpenSectionHeights();
   });
   const btnRetour = document.getElementById("btn-retour-menu");
   btnRetour.addEventListener("click", () => {
@@ -2385,11 +2839,20 @@
 
   // Init
   window.addEventListener("DOMContentLoaded", async () => {
+    reorderConfigurationSections();
     await checkAuth();
-    chargerEquipes();
-    chargerListeGPX();
-    chargerContacts();
-    chargerConfigurationPoi();
+    await chargerRouteContext();
+    const statsDateInput = document.getElementById('stats-date');
+    if (statsDateInput && !statsDateInput.value) {
+      statsDateInput.value = new Date().toISOString().slice(0, 10);
+    }
+    await chargerEventScheduleSettings();
+    await chargerEquipes();
+    await chargerListeGPX();
+    await chargerContacts();
+    await chargerHomepageSettings();
+    await chargerConfigurationPoi();
+    await chargerStatistiques();
     connecterWS();
   });
 </script>

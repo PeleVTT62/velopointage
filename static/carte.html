@@ -202,35 +202,6 @@
     50% { opacity: 0.5; transform: scale(1.2); }
   }
 
-  #passage-list {
-    flex: 1;
-    overflow-y: auto;
-    font-size: 14px;
-    border-radius: 8px;
-    padding: 8px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-  }
-
-  /* Custom scrollbar */
-  #passage-list::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  #passage-list::-webkit-scrollbar-track {
-    background: var(--bg-secondary);
-    border-radius: 3px;
-  }
-
-  #passage-list::-webkit-scrollbar-thumb {
-    background: var(--accent-primary);
-    border-radius: 3px;
-  }
-
-  #passage-list::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-secondary);
-  }
-
   /* === ANIMATIONS POSITION UTILISATEUR (style Google Maps) === */
   @keyframes softPulse {
     0%, 100% {
@@ -308,28 +279,6 @@
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
   }
 
-  #passage-list .passage-item {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border-color);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-radius: 8px;
-    margin-bottom: 4px;
-    background: var(--glass-bg);
-    backdrop-filter: blur(10px);
-  }
-
-  #passage-list .passage-item:hover {
-    background: var(--gradient-primary);
-    color: white;
-    transform: translateX(6px) scale(1.02);
-    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
-  }
-
-  #passage-list .passage-item:last-child {
-    border-bottom: none;
-  }
-
 #summary-table {
   background: var(--glass-bg);
   border-radius: 12px;
@@ -337,26 +286,6 @@
   backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
   box-shadow: 0 4px 12px var(--shadow);
-}
-
-#passages-container {
-  background: var(--glass-bg);
-  border-radius: 12px;
-  padding: 12px;
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 4px 12px var(--shadow);
-  margin-top: 16px;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-}
-
-#passages-container h3 {
-  margin: 0 0 12px 0;
-  padding-bottom: 8px;
-  border-bottom: 2px solid var(--accent-primary);
 }
 
 #summary-table table {
@@ -415,6 +344,60 @@
   transition: all 0.3s ease;
 }
 
+#summary-table tbody tr.is-clickable {
+  cursor: pointer;
+}
+
+.age-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.age-chip.age-fresh {
+  background: rgba(39, 174, 96, 0.2);
+  color: #1e8449;
+}
+
+.age-chip.age-recent {
+  background: rgba(46, 204, 113, 0.2);
+  color: #239b56;
+}
+
+.age-chip.age-aging {
+  background: rgba(243, 156, 18, 0.2);
+  color: #b9770e;
+}
+
+.age-chip.age-stale {
+  background: rgba(231, 76, 60, 0.2);
+  color: #c0392b;
+}
+
+.age-chip.age-unknown {
+  background: rgba(127, 140, 141, 0.22);
+  color: #566573;
+}
+
+.pin-age-chip {
+  margin-top: 3px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.82);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
 #summary-table td {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -461,11 +444,11 @@
     }
     
     #summary-table {
-      flex: 0 0 auto;
+      flex: 1 1 auto;
       overflow-x: auto;
       overflow-y: auto;
-      max-height: 35%;
-      margin-bottom: 8px;
+      max-height: none;
+      margin-bottom: 0;
     }
     
     #summary-table table {
@@ -477,22 +460,6 @@
       font-size: 0.7rem;
     }
     
-    #passage-list {
-      flex: 1 1 auto;
-      font-size: 0.75rem;
-      overflow-y: auto;
-      overflow-x: hidden;
-      border-top: 1px solid var(--border-color);
-      padding: 4px;
-      margin: 0;
-    }
-
-    .passage-item {
-      padding: 6px 4px;
-      font-size: 0.7rem;
-      line-height: 1.3;
-      margin-bottom: 2px;
-    }
   }
 
   /* === BOUTONS FLOTTANTS (tous écrans) === */
@@ -661,11 +628,6 @@
 
   <div id="sidebar">
   <div id="summary-table">Chargement...</div>
-
-  <div id="passages-container">
-    <h3>⏰ Derniers passages</h3>
-    <div id="passage-list">Chargement...</div>
-  </div>
 </div>
 
 <!-- Boutons flottants -->
@@ -716,6 +678,7 @@
     passagesGlobal: [],
     cityCache: {},
     equipesCouleurs: {},
+    teamMarkers: new Map(),
     updateTimer: null,
     markerCache: new Map(), // Cache des marqueurs par clé
     lastWebSocketUpdate: 0,
@@ -1695,6 +1658,101 @@ setTimeout(() => {
     return `il y a ${days} j`;
   }
 
+  function getAgeMeta(timestamp) {
+    if (!timestamp) {
+      return {
+        level: 'unknown',
+        icon: '⚪',
+        shortLabel: 'Inconnu',
+        longLabel: 'horodatage indisponible'
+      };
+    }
+
+    const minutes = getElapsedMinutes(timestamp);
+    if (minutes === null) {
+      return {
+        level: 'unknown',
+        icon: '⚪',
+        shortLabel: 'Inconnu',
+        longLabel: 'horodatage indisponible'
+      };
+    }
+
+    if (minutes <= 2) {
+      return {
+        level: 'fresh',
+        icon: '🟢',
+        shortLabel: `${minutes} min`,
+        longLabel: formatRelativeAgeLabel(timestamp)
+      };
+    }
+
+    if (minutes <= 10) {
+      return {
+        level: 'recent',
+        icon: '🟡',
+        shortLabel: `${minutes} min`,
+        longLabel: formatRelativeAgeLabel(timestamp)
+      };
+    }
+
+    if (minutes <= 30) {
+      return {
+        level: 'aging',
+        icon: '🟠',
+        shortLabel: `${minutes} min`,
+        longLabel: formatRelativeAgeLabel(timestamp)
+      };
+    }
+
+    return {
+      level: 'stale',
+      icon: '🔴',
+      shortLabel: `${minutes} min`,
+      longLabel: formatRelativeAgeLabel(timestamp)
+    };
+  }
+
+  function renderAgeChip(ageMeta, options = {}) {
+    if (!ageMeta) return '';
+    const compact = options.compact === true;
+    const text = compact ? ageMeta.shortLabel : ageMeta.longLabel;
+    return `<span class="age-chip age-${ageMeta.level}">${ageMeta.icon} ${escapeHtml(text)}</span>`;
+  }
+
+  function getAgeMetaForEquipe(equipe) {
+    const etat = String(equipe?.etat || '').toLowerCase();
+    const timestamp = equipe?.last_passage?.timestamp || null;
+
+    // Les équipes non parties n'ont pas besoin d'un badge "inconnu".
+    if (etat === 'non partie' && !timestamp) {
+      return null;
+    }
+
+    return getAgeMeta(timestamp);
+  }
+
+  function buildEquipesFromSummary(summary) {
+    return Object.keys(state.equipesCouleurs).map((nom) => {
+      const s = summary.find((entry) => entry.equipe === nom) || {};
+      const lastPassage = s.last_passage || null;
+
+      return {
+        nom,
+        equipe: nom,
+        couleur: s.couleur || state.equipesCouleurs[nom] || '#666666',
+        etat: s.etat || 'non partie',
+        latitude: lastPassage ? parseCoord(lastPassage.latitude) : null,
+        longitude: lastPassage ? parseCoord(lastPassage.longitude) : null,
+        ville: lastPassage?.ville || '-',
+        observateur: lastPassage?.observateur || '',
+        distance_from_start_km: s.distance_from_start_km != null ? s.distance_from_start_km : null,
+        distance_to_end_km: s.distance_to_end_km != null ? s.distance_to_end_km : null,
+        last_passage: lastPassage,
+      };
+    });
+  }
+
   async function afficherPassages(passages) {
   console.log('🗺️ Affichage de', passages.length, 'passages');
   // Vérifier que la carte est initialisée
@@ -1702,251 +1760,14 @@ setTimeout(() => {
     console.warn('⚠️ Carte non initialisée, impossible d\'afficher les passages');
     return;
   }
-  
-  // Regroupement spatial (150 m)
-  const grouped = regrouperPassagesSpatial(passages, 150);
-  
-  // Optimisation : ne recréer que les marqueurs qui ont changé
-  const newKeys = new Set(Object.keys(grouped));
-  const oldKeys = new Set(state.markerCache.keys());
-  
-  // Supprimer les marqueurs obsolètes
-  for (const key of oldKeys) {
-    if (!newKeys.has(key)) {
-      const marker = state.markerCache.get(key);
-      if (marker) {
-        map.removeLayer(marker);
-        state.markerCache.delete(key);
-      }
-    }
+
+  // Les positions sur la carte sont porteées uniquement par les pins d'équipe.
+  // On vide donc l'ancien cache des marqueurs de passages pour ne plus afficher l'historique sur la carte.
+  for (const marker of state.markerCache.values()) {
+    map.removeLayer(marker);
   }
-  
+  state.markerCache.clear();
   state.passageMarkers = [];
-
-  // Créer ou mettre à jour les marqueurs (en batch pour performance)
-  const markersToAdd = [];
-  
-  const latestPassageByEquipe = new Map();
-  passages.forEach((p) => {
-    const ts = new Date(p.timestamp).getTime();
-    if (!Number.isFinite(ts) || !p.equipe) return;
-    const prev = latestPassageByEquipe.get(p.equipe);
-    if (!prev || ts > prev.ts) {
-      latestPassageByEquipe.set(p.equipe, { ts, id: p.id });
-    }
-  });
-
-  for (const key in grouped) {
-    const group = grouped[key];
-    const [lat, lon] = key.split(",").map(Number);
-
-    // Vérifier si le marqueur existe déjà et si le contenu a changé
-    const newestPassage = group
-      .slice()
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0] || null;
-
-    const hasLatestTeamPosition = group.some((p) => {
-      const latest = latestPassageByEquipe.get(p.equipe);
-      if (!latest) return false;
-      if (latest.id !== undefined && p.id !== undefined) {
-        return latest.id === p.id;
-      }
-      const ts = new Date(p.timestamp).getTime();
-      return Number.isFinite(ts) && ts === latest.ts;
-    });
-
-    const ageLabel = newestPassage ? formatRelativeAgeLabel(newestPassage.timestamp) : "il y a ? min";
-    const latestByTeamInCluster = new Map();
-    group
-      .slice()
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-      .forEach((p) => {
-        if (!p.equipe || latestByTeamInCluster.has(p.equipe)) return;
-        latestByTeamInCluster.set(p.equipe, p.timestamp);
-      });
-    const teamAgeLines = Array.from(latestByTeamInCluster.entries())
-      .map(([team, ts]) => `${team}: ${formatRelativeAgeLabel(ts)}`)
-      .slice(0, 4);
-    if (latestByTeamInCluster.size > 4) {
-      teamAgeLines.push(`+${latestByTeamInCluster.size - 4} équipe(s)`);
-    }
-    const minutesOld = newestPassage ? getElapsedMinutes(newestPassage.timestamp) : null;
-    const isRecent = hasLatestTeamPosition;
-    const ageClass = isRecent ? 'fresh' : (minutesOld !== null && minutesOld >= 180 ? 'very-old' : 'old');
-
-    const groupHash = [
-      group.map(p => p.id).sort().join(','),
-      ageLabel,
-      ageClass,
-      teamAgeLines.join(';')
-    ].join('|');
-    const existingMarker = state.markerCache.get(key);
-    
-    if (existingMarker && existingMarker._groupHash === groupHash) {
-      // Marqueur inchangé, le réutiliser
-      state.passageMarkers.push(existingMarker);
-      continue;
-    }
-    
-    // Créer un nouveau marqueur
-    const equipesPresentes = [...new Set(group.map(p => p.equipe))];
-    const colors = equipesPresentes.map(e => state.equipesCouleurs[e] || "#666");
-    const label = group.length > 1 ? String(group.length) : "";
-    const icon = createMultiColorIcon(colors, label, "🚲", {
-      ageText: ageLabel,
-      ageLines: teamAgeLines,
-      emphasize: isRecent,
-      staleLevel: ageClass
-    });
-
-    // Popup (sécurisé contre XSS)
-    let popupContent = '<div class="popup-content">';
-    popupContent += `<strong>Point de passage</strong> <span style="color:#666; font-size:12px;">(${escapeHtml(ageLabel)})</span><br/>`;
-    popupContent += `<ul style="padding-left:18px; margin:5px 0;">`;
-    group
-      .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))
-      .forEach(p => {
-        const date = new Date(p.timestamp);
-        const heure = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-        popupContent += `<li>${heure} - <strong>${escapeHtml(p.equipe)}</strong> (${escapeHtml(p.observateur || "?")})</li>`;
-      });
-    popupContent += '</ul></div>';
-
-    // Supprimer l'ancien marqueur s'il existe
-    if (existingMarker) {
-      map.removeLayer(existingMarker);
-    }
-    
-    // Créer le nouveau marqueur
-    const marker = L.marker([lat, lon], {
-      icon,
-      zIndexOffset: isRecent ? 450 : 80
-    }).bindPopup(popupContent);
-    marker._groupHash = groupHash; // Stocker le hash pour détecter les changements
-    
-    markersToAdd.push(marker);
-    state.markerCache.set(key, marker);
-    state.passageMarkers.push(marker);
-  }
-  
-  // Ajouter tous les nouveaux marqueurs en une seule fois (batch)
-  if (markersToAdd.length > 0) {
-    const layerGroup = L.layerGroup(markersToAdd);
-    layerGroup.addTo(map);
-  }
-
-  // Liste latérale - affichage immédiat puis chargement progressif des villes
-  const passageListDiv = document.getElementById('passage-list');
-  if (!passages.length) {
-    passageListDiv.textContent = "Aucun passage enregistré.";
-    return;
-  }
-
-  passages.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-  passageListDiv.innerHTML = "";
-
-  const passagesAffiches = passages.slice(0, 20);
-  
-  // 1. Affichage immédiat sans les villes
-  passagesAffiches.forEach(p => {
-    const date = new Date(p.timestamp);
-    const heure = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-
-    const div = document.createElement('div');
-    div.className = "passage-item";
-    div.dataset.passageId = `${p.latitude}_${p.longitude}`;
-    div.textContent = [heure, p.equipe, "⏳", p.observateur].filter(Boolean).join(" - ");
-    div.title = "Cliquez pour centrer sur ce passage";
-    div.setAttribute('role', 'button');
-    div.setAttribute('tabindex', '0');
-
-    // Centre la carte sur le centroïde du cluster le plus proche de ce passage
-    const centerOnPassage = () => {
-      // Désactiver le mode suivi si actif
-      if (window.followMode) {
-        window.followMode = false;
-        const btn = document.getElementById("btn-my-location");
-        if (btn) btn.classList.remove('active');
-        vibrate(30);
-        resetMapRotation();
-        
-        // Masquer les infos GPS
-        const gpsInfo = document.getElementById('gps-info');
-        if (gpsInfo) gpsInfo.classList.remove('visible');
-        
-        // Désactiver la boussole
-        disableCompass();
-      }
-      
-      let bestKey = null, bestDist = Infinity;
-      for (const k in grouped) {
-        const [clat, clon] = k.split(",").map(Number);
-        const d = distanceMeters(p.latitude, p.longitude, clat, clon);
-        if (d < bestDist) { bestDist = d; bestKey = k; }
-      }
-      if (bestKey) {
-        const [clat, clon] = bestKey.split(",").map(Number);
-        map.setView([clat, clon], 17);
-        const m = state.passageMarkers.find(mk => {
-          const ll = mk.getLatLng();
-          return Math.abs(ll.lat - clat) < 1e-6 && Math.abs(ll.lng - clon) < 1e-6;
-        });
-        if (m) m.openPopup();
-      }
-    };
-    div.onclick = centerOnPassage;
-    div.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') centerOnPassage(); };
-
-    passageListDiv.appendChild(div);
-  });
-
-  // 2. Chargement des villes progressif (séquentiel pour respecter limites Nominatim)
-  // On charge d'abord les villes déjà en cache, puis les autres
-  const passagesAvecCache = [];
-  const passagesSansCache = [];
-  
-  passagesAffiches.forEach(p => {
-    const key = `${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`;
-    if (state.cityCache[key]) {
-      passagesAvecCache.push({ p, city: state.cityCache[key] });
-    } else {
-      passagesSansCache.push(p);
-    }
-  });
-  
-  // Afficher immédiatement les villes en cache
-  passagesAvecCache.forEach(({ p, city }) => {
-    const div = passageListDiv.querySelector(`[data-passage-id="${p.latitude}_${p.longitude}"]`);
-    if (div) {
-      const date = new Date(p.timestamp);
-      const heure = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-      div.textContent = [heure, p.equipe, city, p.observateur].filter(Boolean).join(" - ");
-    }
-  });
-  
-  // Charger les autres villes progressivement (en background)
-  if (passagesSansCache.length > 0) {
-    // Limiter à 10 requêtes max pour ne pas surcharger Nominatim
-    const toLoad = passagesSansCache.slice(0, 10);
-    
-    (async () => {
-      for (const p of toLoad) {
-        try {
-          const city = await getCityFromCoords(p.latitude, p.longitude);
-          const div = passageListDiv.querySelector(`[data-passage-id="${p.latitude}_${p.longitude}"]`);
-          if (div) {
-            const date = new Date(p.timestamp);
-            const heure = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-            div.textContent = [heure, p.equipe, city, p.observateur].filter(Boolean).join(" - ");
-          }
-        } catch (err) {
-          console.warn('Erreur geocoding:', err);
-        }
-      }
-      // Sauvegarder le cache après toutes les requêtes
-      saveCityCache();
-    })();
-  }
 }
 
 // Débouncer les mises à jour des passages
@@ -2148,23 +1969,7 @@ ws.addEventListener("message", async event => {
     refreshSummaryTable(msg.summary);
 
     // Compléter les équipes pour afficher les pins
-    const toutesEquipes = Object.keys(state.equipesCouleurs).map(nom => {
-      const s = msg.summary.find(e => e.equipe === nom) || {};
-      // Priorité : coordonnées de last_passage (qui inclut maintenant les coords de la table equipes)
-      const lat = s.last_passage ? parseCoord(s.last_passage.latitude) : null;
-      const lon = s.last_passage ? parseCoord(s.last_passage.longitude) : null;
-      
-      return {
-        nom,
-        couleur: state.equipesCouleurs[nom],
-        etat: s.etat || 'non partie',
-        latitude: lat,
-        longitude: lon,
-        distance_from_start_km: s.distance_from_start_km !== null ? s.distance_from_start_km : null,
-        distance_to_end_km: s.distance_to_end_km !== null ? s.distance_to_end_km : null
-      };
-    });
-
+    const toutesEquipes = buildEquipesFromSummary(msg.summary);
     afficherEtatPins(toutesEquipes);
   }
   } catch (error) {
@@ -2202,22 +2007,7 @@ ws.addEventListener("message", async event => {
         refreshSummaryTable(summary);
         
         // Mettre à jour les pins
-        const toutesEquipes = Object.keys(state.equipesCouleurs).map(nom => {
-          const s = summary.find(e => e.equipe === nom) || {};
-          const lat = s.last_passage ? parseCoord(s.last_passage.latitude) : null;
-          const lon = s.last_passage ? parseCoord(s.last_passage.longitude) : null;
-          
-          return {
-            nom,
-            couleur: state.equipesCouleurs[nom],
-            etat: s.etat || 'non partie',
-            latitude: lat,
-            longitude: lon,
-            distance_from_start_km: s.distance_from_start_km !== null ? s.distance_from_start_km : null,
-            distance_to_end_km: s.distance_to_end_km !== null ? s.distance_to_end_km : null
-          };
-        });
-        
+        const toutesEquipes = buildEquipesFromSummary(summary);
         afficherEtatPins(toutesEquipes);
         console.log('🔄 Rafraîchissement automatique effectué');
       }
@@ -2237,36 +2027,23 @@ function refreshSummaryTable(summary) {
     document.getElementById('sidebar').appendChild(tableContainer);
   }
 
-  // On s'assure que toutes les équipes sont dans le summary
-  const summaryComplet = Object.keys(state.equipesCouleurs).map(nom => {
-    const s = summary.find(e => e.equipe === nom) || {};
-    // Priorité ville:
-    // 1) summary.last_passage.ville
-    // 2) dernier passage connu en mémoire
-    // 3) cache geocoding local à partir des coords
-    // 4) '-'
-    let ville = '-';
-    if (s.last_passage && s.last_passage.ville) {
-      ville = s.last_passage.ville;
-    } else {
-      const lastPassageEquipe = state.passagesGlobal.find(p => p.equipe === nom && p.ville);
+  const summaryComplet = buildEquipesFromSummary(summary).map((equipe) => {
+    let ville = equipe.ville || '-';
+    if (ville === '-') {
+      const lastPassageEquipe = state.passagesGlobal.find(p => p.equipe === equipe.nom && p.ville);
       if (lastPassageEquipe && lastPassageEquipe.ville) {
         ville = lastPassageEquipe.ville;
-      } else if (s.last_passage && s.last_passage.latitude != null && s.last_passage.longitude != null) {
-        const key = `${Number(s.last_passage.latitude).toFixed(5)},${Number(s.last_passage.longitude).toFixed(5)}`;
+      } else if (equipe.latitude != null && equipe.longitude != null) {
+        const key = `${Number(equipe.latitude).toFixed(5)},${Number(equipe.longitude).toFixed(5)}`;
         if (state.cityCache[key]) {
           ville = state.cityCache[key];
         }
       }
     }
-    
+
     return {
-      equipe: nom,
-      couleur: state.equipesCouleurs[nom] || '#666',
-      etat: s.etat || 'non partie',
-      ville: ville,
-      distance_from_start_km: s.distance_from_start_km != null ? s.distance_from_start_km : null,
-      distance_to_end_km: s.distance_to_end_km != null ? s.distance_to_end_km : null
+      ...equipe,
+      ville,
     };
   });
 
@@ -2287,17 +2064,34 @@ summaryComplet.forEach(s => {
   const etatDisplay = etat === 'assistance médicale' ? '🚑 Assistance médicale'
     : etat === 'assistance velo' || etat === 'assistance vélo' ? '🔧 Assistance vélo'
     : s.etat;
-  html += `<tr>
+  const ageMeta = getAgeMetaForEquipe(s);
+  const ageChip = renderAgeChip(ageMeta, { compact: true });
+  const etatCellSuffix = ageChip ? `<br/>${ageChip}` : '';
+  html += `<tr class="is-clickable" data-equipe="${escapeHtml(s.equipe)}" tabindex="0" role="button" aria-label="Centrer ${escapeHtml(s.equipe)} sur la carte">
     <td>${escapeHtml(s.equipe)}</td>
     <td>${escapeHtml(s.ville || '-')}</td>
     <td>${d1}</td>
     <td>${d2}</td>
-    <td>${escapeHtml(etatDisplay || 'non partie')}</td>
+    <td>${escapeHtml(etatDisplay || 'non partie')}${etatCellSuffix}</td>
   </tr>`;
 });
 
   html += '</tbody></table>';
   tableContainer.innerHTML = html;
+
+  tableContainer.querySelectorAll('tbody tr.is-clickable').forEach((row) => {
+    const equipeName = row.getAttribute('data-equipe');
+    const equipe = summaryComplet.find((item) => item.equipe === equipeName);
+    if (!equipe) return;
+
+    row.addEventListener('click', () => centerOnEquipe(equipe));
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        centerOnEquipe(equipe);
+      }
+    });
+  });
 }
 
 let startPoint = null;
@@ -2305,39 +2099,54 @@ let endPoint = null;
 let markersLayer = L.layerGroup().addTo(map);
 
 // Fonction consolidée pour créer des icônes d'état
-function createEmojiIcon(etat, color, size = 30) {
+function createEmojiIcon(etat, color, size = 30, options = {}) {
   const emojiMap = {
+    'roule': '🚴',
     'pause': '✋',
+    'pause midi': '🍽️',
     'temps spi': '🙏',
     'non partie': '🚦',
-    'arrivée': '🏁'
+    'arrivée': '🏁',
+    'arrivee': '🏁',
+    'assistance médicale': '🚑',
+    'assistance velo': '🔧',
+    'assistance vélo': '🔧'
   };
   const emoji = emojiMap[etat.toLowerCase()] || '❓';
+  const ageMeta = options.ageMeta || null;
+  const ageBadge = ageMeta
+    ? `<div class="pin-age-chip">${escapeHtml(ageMeta.icon)} ${escapeHtml(ageMeta.shortLabel)}</div>`
+    : '';
   
   const html = `
-    <div style="
-      width: ${size}px;
-      height: ${size}px;
-      background: ${color};
-      border: 2px solid #000;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: ${size * 0.6}px;
-      color: white;
-      text-shadow: 0 0 3px rgba(0,0,0,0.7);
-      user-select: none;
-    " role="img" aria-label="${escapeHtml(etat)}">
-      ${emoji}
+    <div style="display:flex;flex-direction:column;align-items:center;transform:translateY(-6px);">
+      <div style="
+        width: ${size}px;
+        height: ${size}px;
+        background: ${color};
+        border: 2px solid #000;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: ${size * 0.6}px;
+        color: white;
+        text-shadow: 0 0 3px rgba(0,0,0,0.7);
+        user-select: none;
+      " role="img" aria-label="${escapeHtml(etat)}">
+        ${emoji}
+      </div>
+      ${ageBadge}
     </div>
   `;
+  const iconWidth = Math.max(size + 20, 72);
+  const iconHeight = size + (ageMeta ? 24 : 8);
   return L.divIcon({ 
     html, 
     className: "", 
-    iconSize: [size, size], 
-    iconAnchor: [size/2, size/2],
-    popupAnchor: [0, -size/2]
+    iconSize: [iconWidth, iconHeight], 
+    iconAnchor: [Math.round(iconWidth / 2), Math.round(iconHeight / 2)],
+    popupAnchor: [0, -Math.round(iconHeight / 2)]
   });
 }
 
@@ -2439,103 +2248,215 @@ function parseCoord(v) {
   return isNaN(n) ? null : n;
 }
 
+function normalizeEtatForGroup(etat) {
+  const value = String(etat || '').toLowerCase().trim();
+  if (value === 'arrivee') return 'arrivée';
+  if (value === 'assistance velo') return 'assistance vélo';
+  return value || 'non partie';
+}
+
+function getGroupedEmoji(items) {
+  const etats = items.map(({ equipe }) => normalizeEtatForGroup(equipe.etat));
+  if (etats.length > 0 && etats.every((etat) => etat === 'non partie')) {
+    return '🚦';
+  }
+
+  const counts = new Map();
+  etats.forEach((etat) => {
+    counts.set(etat, (counts.get(etat) || 0) + 1);
+  });
+
+  const priority = [
+    'assistance médicale',
+    'assistance vélo',
+    'arrivée',
+    'roule',
+    'pause midi',
+    'pause',
+    'temps spi',
+    'non partie',
+  ];
+
+  const emojiMap = {
+    'assistance médicale': '🚑',
+    'assistance vélo': '🔧',
+    'arrivée': '🏁',
+    'roule': '🚴',
+    'pause midi': '🍽️',
+    'pause': '✋',
+    'temps spi': '🙏',
+    'non partie': '🚦',
+  };
+
+  let selectedEtat = 'roule';
+  let selectedCount = -1;
+
+  priority.forEach((etat) => {
+    const count = counts.get(etat) || 0;
+    if (count > selectedCount) {
+      selectedCount = count;
+      selectedEtat = etat;
+    }
+  });
+
+  if (selectedCount <= 0) {
+    return '🚲';
+  }
+
+  return emojiMap[selectedEtat] || '🚲';
+}
+
+function getEquipeMarkerPosition(equipe) {
+  const etat = String(equipe.etat || '').toLowerCase();
+  const latitude = parseCoord(equipe.latitude);
+  const longitude = parseCoord(equipe.longitude);
+
+  if (latitude !== null && longitude !== null) {
+    return [latitude, longitude];
+  }
+
+  if (etat === 'non partie' && startPoint) {
+    return startPoint;
+  }
+
+  if ((etat === 'arrivée' || etat === 'arrivee') && endPoint) {
+    return endPoint;
+  }
+
+  return null;
+}
+
+function centerOnEquipe(equipe) {
+  if (window.followMode) {
+    window.followMode = false;
+    const btn = document.getElementById('btn-my-location');
+    if (btn) btn.classList.remove('active');
+    vibrate(30);
+    resetMapRotation();
+    const gpsInfo = document.getElementById('gps-info');
+    if (gpsInfo) gpsInfo.classList.remove('visible');
+    disableCompass();
+  }
+
+  const position = getEquipeMarkerPosition(equipe);
+  if (position) {
+    map.setView(position, 17);
+  }
+
+  const marker = state.teamMarkers.get(equipe.nom || equipe.equipe);
+  if (marker) {
+    marker.openPopup();
+  }
+}
+
+function buildEquipePopup(equipe) {
+  const etat = equipe.etat || 'non partie';
+  const ville = equipe.ville || '-';
+  const d1 = equipe.distance_from_start_km != null ? `${equipe.distance_from_start_km.toFixed(1)} km` : '-';
+  const d2 = equipe.distance_to_end_km != null ? `${equipe.distance_to_end_km.toFixed(1)} km` : '-';
+  const lastTimestamp = equipe.last_passage?.timestamp || null;
+  const ageMeta = getAgeMetaForEquipe(equipe);
+  const ageChip = renderAgeChip(ageMeta);
+  const lastPositionText = ageMeta ? ageMeta.longLabel : 'non démarrée';
+  const ageChipLine = ageChip ? `<br/>${ageChip}` : '';
+
+  return `
+    <div class="popup-content">
+      <strong>${escapeHtml(equipe.nom)}</strong><br/>
+      État: ${escapeHtml(etat)}<br/>
+      Ville: ${escapeHtml(ville)}<br/>
+      PK: ${escapeHtml(d1)}<br/>
+      Reste: ${escapeHtml(d2)}<br/>
+      Dernière position: ${escapeHtml(lastPositionText)}${ageChipLine}
+    </div>
+  `;
+}
+
+function buildGroupedPopup(groupItems) {
+  const rows = groupItems.map(({ equipe }) => {
+    const ageMeta = getAgeMetaForEquipe(equipe);
+    const ageText = ageMeta ? ageMeta.longLabel : 'non démarrée';
+    const etat = equipe.etat || 'non partie';
+    return `<tr>
+      <td style="padding:2px 8px 2px 0;"><strong>${escapeHtml(equipe.nom)}</strong></td>
+      <td style="padding:2px 8px 2px 0;">${escapeHtml(etat)}</td>
+      <td style="padding:2px 0;">${escapeHtml(ageText)}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="popup-content">
+      <strong>📍 ${groupItems.length} équipes au même point</strong><br/>
+      <table style="margin-top:6px;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:2px 8px 2px 0;">Équipe</th>
+            <th style="text-align:left;padding:2px 8px 2px 0;">État</th>
+            <th style="text-align:left;padding:2px 0;">Ancienneté</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 function afficherEtatPins(equipes) {
   console.log('📍 Affichage pins pour', equipes.length, 'équipes:', equipes);
   markersLayer.clearLayers();
+  state.teamMarkers.clear();
 
-  const nonParties = equipes.filter(e => e.etat.toLowerCase() === "non partie");
-  const arrivees = equipes.filter(e => ["arrivée", "arrivee"].includes(e.etat.toLowerCase()));
-  const autres = equipes.filter(e => ["pause", "pause midi", "temps spi", "assistance médicale", "assistance velo", "assistance vélo"].includes(e.etat.toLowerCase()));
-  
-  console.log(`📊 Non parties: ${nonParties.length}, Arrivées: ${arrivees.length}, Autres: ${autres.length}`);
+  const groupedByPoint = new Map();
+  equipes.forEach((equipe) => {
+    const position = getEquipeMarkerPosition(equipe);
+    if (!position) return;
+    const key = `${position[0].toFixed(6)},${position[1].toFixed(6)}`;
+    if (!groupedByPoint.has(key)) {
+      groupedByPoint.set(key, { position, items: [] });
+    }
+    groupedByPoint.get(key).items.push({ equipe, position });
+  });
 
-  // Non parties regroupées au départ
-  if (nonParties.length && startPoint) {
-    const colors = nonParties.map(e => e.couleur);
-    const label = nonParties.length;
-    const emoji = "🚦";
-    L.marker(startPoint, { icon: createMultiColorIcon(colors, label, emoji) })
-      .bindPopup("Non parties:<br>" + nonParties.map(e => e.nom).join("<br>"))
-      .addTo(markersLayer);
-  }
+  groupedByPoint.forEach(({ position, items }) => {
+    let marker;
 
-  // Arrivées regroupées à leur position moyenne
-  if (arrivees.length) {
-    const arriveesFiltrees = arrivees.map(e => ({
-      ...e,
-      latitude: parseCoord(e.latitude),
-      longitude: parseCoord(e.longitude)
-    })).filter(e => e.latitude !== null && e.longitude !== null);
-    if (arriveesFiltrees.length > 0) {
-      const colors = arriveesFiltrees.map(e => e.couleur);
-      const label = arriveesFiltrees.length;
-      const emoji = "🏁";
-      const lat = arriveesFiltrees.reduce((sum, e) => sum + e.latitude, 0) / arriveesFiltrees.length;
-      const lon = arriveesFiltrees.reduce((sum, e) => sum + e.longitude, 0) / arriveesFiltrees.length;
+    if (items.length === 1) {
+      const equipe = items[0].equipe;
+      marker = L.marker(position, {
+        icon: createEmojiIcon(
+          equipe.etat || 'non partie',
+          equipe.couleur || '#666666',
+          32,
+          { ageMeta: getAgeMetaForEquipe(equipe) }
+        ),
+        zIndexOffset: 300,
+      })
+        .bindPopup(buildEquipePopup(equipe))
+        .addTo(markersLayer);
+    } else {
+      const colors = items.map(({ equipe }) => equipe.couleur || '#666666');
+      const groupedEmoji = getGroupedEmoji(items);
+      const ageLines = items.map(({ equipe }) => {
+        const ageMeta = getAgeMetaForEquipe(equipe);
+        const age = ageMeta ? ageMeta.shortLabel : 'ND';
+        return `${equipe.nom}: ${age}`;
+      });
 
-      L.marker([lat, lon], { icon: createMultiColorIcon(colors, label, emoji) })
-        .bindPopup("Arrivées:<br>" + arriveesFiltrees.map(e => e.nom).join("<br>"))
+      marker = L.marker(position, {
+        icon: createMultiColorIcon(colors, String(items.length), groupedEmoji, {
+          emphasize: true,
+          ageLines,
+        }),
+        zIndexOffset: 450,
+      })
+        .bindPopup(buildGroupedPopup(items))
         .addTo(markersLayer);
     }
-  }
 
-  // Pause / Temps SPI regroupées si proches
-  const clusters = [];
-  const rayonMetres = 100; // rayon de fusion en mètres
-
-  autres.forEach(e => {
-    const lat = parseCoord(e.latitude);
-    const lon = parseCoord(e.longitude);
-    if (lat === null || lon === null) return;
-
-    let clusterFound = false;
-    for (const cluster of clusters) {
-      const latC = cluster.lat;
-      const lonC = cluster.lon;
-      const dist = distanceMeters(lat, lon, latC, lonC);
-      if (dist <= rayonMetres) {
-        cluster.teams.push({ ...e, latitude: lat, longitude: lon });
-        clusterFound = true;
-        break;
-      }
-    }
-    if (!clusterFound) clusters.push({ lat, lon, teams: [{ ...e, latitude: lat, longitude: lon }] });
+    items.forEach(({ equipe }) => {
+      state.teamMarkers.set(equipe.nom, marker);
+    });
   });
-
-  clusters.forEach(cluster => {
-    const lat = cluster.teams.reduce((sum, t) => sum + t.latitude, 0) / cluster.teams.length;
-    const lon = cluster.teams.reduce((sum, t) => sum + t.longitude, 0) / cluster.teams.length;
-    const colors = cluster.teams.map(t => t.couleur);
-    const label = cluster.teams.length === 1 ? "" : cluster.teams.length;
-    
-    // Déterminer l'emoji en fonction de l'état
-    let emoji = "✋";
-    
-    // Si toutes les équipes sont dans le même état, utiliser l'emoji correspondant
-    const etats = cluster.teams.map(t => t.etat.toLowerCase());
-    const etatUnique = etats.every(t => t === etats[0]);
-    
-    if (etatUnique) {
-      const etatLower = etats[0];
-      if (etatLower === "pause") emoji = "✋";
-      else if (etatLower === "pause midi") emoji = "🍽️";
-      else if (etatLower === "temps spi") emoji = "🙏";
-      else if (etatLower === "assistance médicale") emoji = "🚑";
-      else if (etatLower === "assistance velo" || etatLower === "assistance vélo") emoji = "🔧";
-      else emoji = "✋";
-    } else if (etats.includes("assistance médicale")) {
-      // Priorité visuelle à l'assistance médicale dans les clusters mixtes
-      emoji = "🚑";
-    } else if (etats.includes("assistance velo") || etats.includes("assistance vélo")) {
-      emoji = "🔧";
-    }
-
-    L.marker([lat, lon], { icon: createMultiColorIcon(colors, label, emoji) })
-      .bindPopup("Équipes:<br>" + cluster.teams.map(t => `${t.nom} (${t.etat})`).join("<br>"))
-      .addTo(markersLayer);
-  });
-
-  // Les équipes qui roulent n'ont pas de pin
 }
 
 let gpxStartPoint = null;
@@ -2576,22 +2497,7 @@ let gpxStartPoint = null;
         refreshSummaryTable(summary);
         
         // Afficher les pins
-        const toutesEquipes = Object.keys(state.equipesCouleurs).map(nom => {
-          const s = summary.find(e => e.equipe === nom) || {};
-          const lat = s.last_passage ? parseCoord(s.last_passage.latitude) : null;
-          const lon = s.last_passage ? parseCoord(s.last_passage.longitude) : null;
-          
-          return {
-            nom,
-            couleur: state.equipesCouleurs[nom],
-            etat: s.etat || 'non partie',
-            latitude: lat,
-            longitude: lon,
-            distance_from_start_km: s.distance_from_start_km !== null ? s.distance_from_start_km : null,
-            distance_to_end_km: s.distance_to_end_km !== null ? s.distance_to_end_km : null
-          };
-        });
-        
+        const toutesEquipes = buildEquipesFromSummary(summary);
         afficherEtatPins(toutesEquipes);
       }
       
