@@ -949,6 +949,13 @@ def init_db() -> None:
             c.execute("ALTER TABLE equipes ADD COLUMN ville TEXT")
             conn.commit()
 
+        # Horodatage du dernier changement d'état, valable pour tous les états.
+        c.execute("PRAGMA table_info(equipes)")
+        eq_columns = [row[1] for row in c.fetchall()]
+        if "etat_timestamp" not in eq_columns:
+            c.execute("ALTER TABLE equipes ADD COLUMN etat_timestamp TEXT")
+            conn.commit()
+
               # Valeurs par défaut si vide
         c.execute("SELECT COUNT(*) FROM equipes")
         count = c.fetchone()[0]
@@ -1120,7 +1127,7 @@ def get_all_passages_today(include_archives: bool = True) -> List[Dict[str, Any]
 def get_equipes() -> List[Dict[str, Any]]:
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
-        c.execute("SELECT id, nom, couleur, etat, latitude, longitude, ville FROM equipes ORDER BY nom")
+        c.execute("SELECT id, nom, couleur, etat, latitude, longitude, ville, etat_timestamp FROM equipes ORDER BY nom")
         rows = c.fetchall()
     return [
         {
@@ -1130,7 +1137,8 @@ def get_equipes() -> List[Dict[str, Any]]:
             "etat": r[3],
             "latitude": float(r[4]) if r[4] is not None else None,
             "longitude": float(r[5]) if r[5] is not None else None,
-            "ville": r[6] if len(r) > 6 and r[6] is not None else ""
+            "ville": r[6] if len(r) > 6 and r[6] is not None else "",
+            "etat_timestamp": r[7] if len(r) > 7 else None,
         }
         for r in rows
     ]
@@ -1138,7 +1146,7 @@ def get_equipes() -> List[Dict[str, Any]]:
 def save_equipes(equipes: List[Dict[str, str]]) -> None:
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
-        c.execute("SELECT nom, couleur, etat, latitude, longitude, ville FROM equipes")
+        c.execute("SELECT nom, couleur, etat, latitude, longitude, ville, etat_timestamp FROM equipes")
         existing_rows = c.fetchall()
         existing_by_name = {
             row[0]: {
@@ -1147,6 +1155,7 @@ def save_equipes(equipes: List[Dict[str, str]]) -> None:
                 "latitude": row[3],
                 "longitude": row[4],
                 "ville": row[5] or "",
+                "etat_timestamp": row[6],
             }
             for row in existing_rows
         }
@@ -1183,11 +1192,12 @@ def save_equipes(equipes: List[Dict[str, str]]) -> None:
                     previous["latitude"] if previous else None,
                     previous["longitude"] if previous else None,
                     previous["ville"] if previous else "",
+                    previous["etat_timestamp"] if previous else None,
                 )
             )
 
         c.executemany(
-            "INSERT INTO equipes (nom, couleur, etat, latitude, longitude, ville) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO equipes (nom, couleur, etat, latitude, longitude, ville, etat_timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
             rows_to_insert
         )
         conn.commit()
@@ -1223,12 +1233,18 @@ def open_state_period_if_needed(conn: sqlite3.Connection, equipe: str, etat: str
 def record_team_state_change(conn: sqlite3.Connection, equipe: str, old_etat: str, new_etat: str, changed_at_iso: Optional[str] = None) -> None:
     old_norm = normalize_etat(old_etat)
     new_norm = normalize_etat(new_etat)
-    if old_norm == new_norm:
-        return
-
     ts_iso = changed_at_iso or utc_now_iso()
-    close_open_state_periods(conn, equipe, ts_iso)
-    open_state_period_if_needed(conn, equipe, new_norm, ts_iso)
+    c = conn.cursor()
+    c.execute(
+        "UPDATE equipes SET etat_timestamp = ? WHERE nom = ?",
+        (ts_iso, equipe),
+    )
+
+    # Les périodes statistiques ne concernent que pause et temps spi,
+    # mais l'horodatage général doit être remis à zéro pour tous les états.
+    if old_norm != new_norm:
+        close_open_state_periods(conn, equipe, ts_iso)
+        open_state_period_if_needed(conn, equipe, new_norm, ts_iso)
 
 
 def sync_open_state_periods_for_current_states() -> None:
@@ -2355,6 +2371,8 @@ def api_get_summary() -> List[Dict[str, Any]]:
             equipe_lat = equipe.get("latitude")
             equipe_lon = equipe.get("longitude")
             equipe_ville = equipe.get("ville")
+            etat_normalized = normalize_etat(equipe.get("etat"))
+            etat_timestamp = equipe.get("etat_timestamp")
             
             c.execute(
                 """
@@ -2366,6 +2384,32 @@ def api_get_summary() -> List[Dict[str, Any]]:
                 (nom,),
             )
             r = c.fetchone()
+
+            assistance_timestamp = None
+            if etat_normalized in {"assistance médicale", "assistance vélo"}:
+                c.execute(
+                    """
+                    SELECT timestamp
+                    FROM assistance_events
+                    WHERE equipe = ?
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                    """,
+                    (nom,),
+                )
+                assist_row = c.fetchone()
+                assistance_timestamp = assist_row[0] if assist_row and assist_row[0] else None
+
+            latest_timestamp = r[4] if r else None
+            state_dt = parse_iso_datetime(etat_timestamp)
+            latest_dt = parse_iso_datetime(latest_timestamp)
+            if state_dt and (latest_dt is None or state_dt >= latest_dt):
+                latest_timestamp = etat_timestamp
+
+            assist_dt = parse_iso_datetime(assistance_timestamp)
+            last_dt = parse_iso_datetime(latest_timestamp)
+            if assist_dt and (last_dt is None or assist_dt >= last_dt):
+                latest_timestamp = assistance_timestamp
             
             # Priorité : coordonnées de la table equipes > coordonnées du dernier passage
             if equipe_lat is not None and equipe_lon is not None:
@@ -2397,9 +2441,10 @@ def api_get_summary() -> List[Dict[str, Any]]:
                         "equipe": nom,
                         "couleur": equipe["couleur"],
                         "etat": equipe["etat"],
+                        "ville": ville,
                         "last_passage": {
                             "id": r[0] if r else None,
-                            "timestamp": r[4] if r else None,
+                            "timestamp": latest_timestamp,
                             "observateur": r[5] if r else None,
                             "latitude": lat,
                             "longitude": lon,
@@ -2415,6 +2460,7 @@ def api_get_summary() -> List[Dict[str, Any]]:
                         "equipe": nom,
                         "couleur": equipe["couleur"],
                         "etat": equipe["etat"],
+                        "ville": equipe_ville or None,
                         "last_passage": None,
                         "distance_from_start_km": None,
                         "distance_to_end_km": None,

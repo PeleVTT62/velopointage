@@ -925,6 +925,24 @@
       overflow-x: visible;
     }
 
+    /* Le tableau stats reste tabulaire et scrollable horizontalement sur mobile */
+    #section-stats .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #stats-table {
+      min-width: 760px;
+      table-layout: auto;
+    }
+
+    #stats-table th,
+    #stats-table td {
+      white-space: nowrap;
+      font-size: 0.85em;
+      padding: 0.55em;
+    }
+
     #poi-table thead {
       display: none;
     }

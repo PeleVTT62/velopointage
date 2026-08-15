@@ -463,11 +463,21 @@
   }
 
   /* === BOUTONS FLOTTANTS (tous écrans) === */
-  /* Boutons flottants */
+  #map-actions {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    z-index: 1000;
+  }
+
   .floating-button {
-    position: fixed;
-    width: 56px;
-    height: 56px;
+    position: relative;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: var(--gradient-primary);
     color: white;
@@ -479,7 +489,6 @@
     font-size: 1.5rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    z-index: 1000;
     padding: 0;
     margin: 0;
   }
@@ -490,25 +499,14 @@
   }
 
   #btn-menu-principal {
-    bottom: 20px;
-    right: 20px;
-  }
-
-  #btn-recenter {
-    bottom: 90px;
-    right: 20px;
-  }
-
-  #btn-my-location {
-    bottom: 160px;
-    right: 20px;
+    order: 3;
   }
 
   /* Tooltips pour boutons flottants */
   .floating-button::after {
     content: attr(data-tooltip);
     position: absolute;
-    right: 70px;
+    right: 58px;
     top: 50%;
     transform: translateY(-50%);
     background: white;
@@ -588,7 +586,7 @@
   .gps-accuracy-medium { color: #f39c12; }
   .gps-accuracy-bad { color: #e74c3c; }
 
-  /* Sur mobile, boutons de carte sur la carte, menu en bas */
+  /* Les boutons restent dans la carte, jamais dans le panneau récapitulatif. */
   @media (max-width: 768px) {
     .gps-info {
       top: 10px;
@@ -602,10 +600,10 @@
       margin: 1px 0;
     }
     
-    .floating-button {
-      width: 56px;
-      height: 56px;
-      font-size: 1.5rem;
+    #map-actions {
+      right: 12px;
+      bottom: 12px;
+      gap: 8px;
     }
   }
 
@@ -613,7 +611,13 @@
 </head>
 <body>
 
-  <div id="map"></div>
+  <div id="map">
+    <div id="map-actions" aria-label="Actions carte">
+      <button id="btn-my-location" class="floating-button" data-tooltip="Ma position">📍</button>
+      <button id="btn-recenter" class="floating-button" data-tooltip="Centrer carte">🗺️</button>
+      <button id="btn-menu-principal" class="floating-button" data-tooltip="Retour menu">↩️</button>
+    </div>
+  </div>
   
   <div class="gps-info" id="gps-info">
     <div class="gps-info-item">
@@ -629,11 +633,6 @@
   <div id="sidebar">
   <div id="summary-table">Chargement...</div>
 </div>
-
-<!-- Boutons flottants -->
-<button id="btn-my-location" class="floating-button" data-tooltip="Ma position">📍</button>
-<button id="btn-recenter" class="floating-button" data-tooltip="Centrer carte">🗺️</button>
-<button id="btn-menu-principal" class="floating-button" data-tooltip="Retour menu">↩️</button>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
@@ -683,7 +682,9 @@
     markerCache: new Map(), // Cache des marqueurs par clé
     lastWebSocketUpdate: 0,
     pendingGeocodingRequests: 0,
-    maxConcurrentGeocoding: 3 // Max 3 requêtes Nominatim simultanées
+    maxConcurrentGeocoding: 3, // Max 3 requêtes Nominatim simultanées
+    pendingCityLookups: new Set(),
+    lastSummary: []
   };
   
   // Charger le cache des villes depuis localStorage
@@ -1595,6 +1596,29 @@ setTimeout(() => {
     }
   }
 
+  function resolveMissingCityForEquipe(lat, lon) {
+    const latNum = Number(lat);
+    const lonNum = Number(lon);
+    if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return;
+
+    const key = `${latNum.toFixed(5)},${lonNum.toFixed(5)}`;
+    if (state.cityCache[key] || state.pendingCityLookups.has(key)) return;
+
+    state.pendingCityLookups.add(key);
+    getCityFromCoords(latNum, lonNum)
+      .then((city) => {
+        if (city && city !== 'Ville inconnue' && state.lastSummary.length > 0) {
+          refreshSummaryTable(state.lastSummary);
+        }
+      })
+      .catch((error) => {
+        console.warn('Résolution ville échouée:', error);
+      })
+      .finally(() => {
+        state.pendingCityLookups.delete(key);
+      });
+  }
+
   function regrouperPassagesSpatial(passages, rayonMetres = 150) {
     const clusters = [];
 
@@ -1736,6 +1760,7 @@ setTimeout(() => {
     return Object.keys(state.equipesCouleurs).map((nom) => {
       const s = summary.find((entry) => entry.equipe === nom) || {};
       const lastPassage = s.last_passage || null;
+      const ville = s.ville || lastPassage?.ville || '-';
 
       return {
         nom,
@@ -1744,7 +1769,7 @@ setTimeout(() => {
         etat: s.etat || 'non partie',
         latitude: lastPassage ? parseCoord(lastPassage.latitude) : null,
         longitude: lastPassage ? parseCoord(lastPassage.longitude) : null,
-        ville: lastPassage?.ville || '-',
+        ville,
         observateur: lastPassage?.observateur || '',
         distance_from_start_km: s.distance_from_start_km != null ? s.distance_from_start_km : null,
         distance_to_end_km: s.distance_to_end_km != null ? s.distance_to_end_km : null,
@@ -2019,6 +2044,7 @@ ws.addEventListener("message", async event => {
 
 function refreshSummaryTable(summary) {
   console.log('🔄 Refresh summary table avec', summary.length, 'entrées');
+  state.lastSummary = Array.isArray(summary) ? summary : [];
   let tableContainer = document.getElementById('summary-table');
   if (!tableContainer) {
     tableContainer = document.createElement('div');
@@ -2037,6 +2063,8 @@ function refreshSummaryTable(summary) {
         const key = `${Number(equipe.latitude).toFixed(5)},${Number(equipe.longitude).toFixed(5)}`;
         if (state.cityCache[key]) {
           ville = state.cityCache[key];
+        } else {
+          resolveMissingCityForEquipe(equipe.latitude, equipe.longitude);
         }
       }
     }
@@ -2061,6 +2089,18 @@ summaryComplet.forEach(s => {
   const d1 = s.distance_from_start_km != null ? s.distance_from_start_km.toFixed(1) : '-';
   const d2 = s.distance_to_end_km != null ? s.distance_to_end_km.toFixed(1) : '-';
   const etat = (s.etat || 'non partie').toLowerCase();
+    const etatEmoji = {
+      'roule': '🚴',
+      'pause': '✋',
+      'pause midi': '🍽️',
+      'temps spi': '🙏',
+      'non partie': '🚦',
+      'arrivée': '🏁',
+      'arrivee': '🏁',
+      'assistance médicale': '🚑',
+      'assistance velo': '🔧',
+      'assistance vélo': '🔧'
+    }[etat] || '❓';
   const etatDisplay = etat === 'assistance médicale' ? '🚑 Assistance médicale'
     : etat === 'assistance velo' || etat === 'assistance vélo' ? '🔧 Assistance vélo'
     : s.etat;
@@ -2072,7 +2112,7 @@ summaryComplet.forEach(s => {
     <td>${escapeHtml(s.ville || '-')}</td>
     <td>${d1}</td>
     <td>${d2}</td>
-    <td>${escapeHtml(etatDisplay || 'non partie')}${etatCellSuffix}</td>
+    <td><span aria-hidden="true">${etatEmoji}</span> ${escapeHtml(etatDisplay || 'non partie').replace(/^(🚴|✋|🍽️|🙏|🚦|🏁|🚑|🔧|❓)\s*/, '')}${etatCellSuffix}</td>
   </tr>`;
 });
 
