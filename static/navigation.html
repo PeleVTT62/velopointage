@@ -109,7 +109,7 @@ body::before {
   -webkit-backdrop-filter: blur(20px);
   overflow: auto;
   border-right: 1px solid var(--glass-border);
-  padding: 2rem;
+  padding: calc(2rem + env(safe-area-inset-top, 0px)) 2rem 2rem;
   box-shadow: 2px 0 24px rgba(52, 152, 219, 0.12);
   z-index: 1000;
   display: flex;
@@ -401,7 +401,7 @@ body::before {
     max-height: 50vh;
     border-right: none;
     border-bottom: 1px solid var(--glass-border);
-    padding: 1.25rem;
+    padding: calc(1.25rem + env(safe-area-inset-top, 0px)) 1.25rem 1.25rem;
   }
 
   #sidebar h3 {
@@ -592,7 +592,7 @@ function buildNavigationPopup(label, gmapsLink) {
   return `
     <div class="nav-popup">
       <div class="nav-popup-title">${label}</div>
-      <a class="nav-popup-link" href="${gmapsLink}" target="_blank" rel="noopener">
+      <a class="nav-popup-link" href="${gmapsLink}">
         <span class="nav-popup-link-icon">🧭</span>
         <span>Ouvrir l'itineraire</span>
       </a>
