@@ -297,8 +297,11 @@ body::before {
 
 /* === EXTERNAL SECTION === */
 .external-section {
-  margin-top: 2.5rem;
-  padding-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-top: 0.3rem;
+  padding-top: 1rem;
   border-top: 2px solid var(--border-color);
 }
 
