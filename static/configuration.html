@@ -50,7 +50,7 @@
     transition: all 0.3s ease;
     position: relative;
     overflow-x: hidden;
-    padding: 2em 1em;
+    padding: calc(2em + env(safe-area-inset-top, 0px)) 1em 2em;
   }
 
   html, body {
@@ -857,7 +857,7 @@
   /* === RESPONSIVE === */
   @media (max-width: 768px) {
     body {
-      padding: 1em 0.5em;
+      padding: calc(1em + env(safe-area-inset-top, 0px)) 0.5em 1em;
     }
 
     .container {

@@ -79,7 +79,7 @@
       animation: gradientShift 15s ease infinite;
       color: var(--text-primary);
       min-height: 100vh;
-      padding: 1rem;
+      padding: calc(1rem + env(safe-area-inset-top, 0px)) 1rem 1rem;
       position: relative;
     }
 

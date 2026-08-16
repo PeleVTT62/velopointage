@@ -64,7 +64,7 @@
       animation: gradientShift 15s ease infinite;
       color: var(--text-primary);
       min-height: 100vh;
-      padding: 1.5rem;
+      padding: calc(1.5rem + env(safe-area-inset-top, 0px)) 1.5rem 1.5rem;
       position: relative;
     }
 
@@ -772,7 +772,7 @@
 
     @media (max-width: 768px) {
       body {
-        padding: 1rem;
+        padding: calc(1rem + env(safe-area-inset-top, 0px)) 1rem 1rem;
       }
 
       h1 {
@@ -800,7 +800,7 @@
 
     @media (max-width: 480px) {
       body {
-        padding: 0.75rem;
+        padding: calc(0.75rem + env(safe-area-inset-top, 0px)) 0.75rem 0.75rem;
       }
 
       h1 {

@@ -160,7 +160,7 @@ body::before {
   flex: 1;
   max-width: 600px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: calc(1.5rem + env(safe-area-inset-top, 0px)) 1.5rem 1.5rem;
   width: 100%;
   position: relative;
   z-index: 1;
@@ -728,7 +728,7 @@ body::before {
   }
 
   .container {
-    padding: 1rem;
+    padding: calc(1rem + env(safe-area-inset-top, 0px)) 1rem 1rem;
   }
 
   .logo {
